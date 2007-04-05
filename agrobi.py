@@ -10,8 +10,9 @@ readerNuclei = itk.lsm(channel=1)
 # remove some noise and smooth the image
 medianNuclei = itk.MedianImageFilter.IUC3IUC3.New(readerNuclei)
 gaussianNuclei = itk.SmoothingRecursiveGaussianImageFilter.IUC3IUC3.New(medianNuclei, Sigma=0.36)
+inputNuclei = gaussianNuclei
 # an automatic threshold
-kappaNuclei = itk.KappaSigmaThresholdImageFilter.IUC3IUC3.New(gaussianNuclei)
+kappaNuclei = itk.KappaSigmaThresholdImageFilter.IUC3IUC3.New(inputNuclei)
 # fill the holes
 fillHoles2D = itk.GrayscaleFillholeImageFilter.IUC2IUC2.New(auto_progress=False)
 fillHolesNuclei = itk.SliceBySliceImageFilter.IUC3IUC3.New(kappaNuclei, Filter=fillHoles2D.GetPointer())
@@ -19,12 +20,22 @@ fillHolesNuclei = itk.SliceBySliceImageFilter.IUC3IUC3.New(kappaNuclei, Filter=f
 binarySizeOpeningNuclei = itk.BinaryShapeOpeningImageFilter.IUC3.New(fillHolesNuclei, Lambda=100000)
 # we have the mask of our nuclei
 maskNuclei = binarySizeOpeningNuclei
-# labelize the nuclei
-connectedNuclei = itk.ConnectedComponentImageFilter.IUC3IUC3.New(maskNuclei)
-labelNuclei = connectedNuclei
+# split and labelize the nuclei
+maurerNuclei = itk.SignedMaurerDistanceMapImageFilter.IUC3IF3.New(maskNuclei, UseImageSpacing=True)
+watershedNuclei = itk.MorphologicalWatershedImageFilter.IF3IUC3.New(maurerNuclei, Level=1, MarkWatershedLine=False)
+maskWatershedNuclei = itk.MaskImageFilter.IUC3IUC3IUC3.New(watershedNuclei, maskNuclei)
+labelNuclei = maskWatershedNuclei
+
+labelCollectionNuclei = itk.LabelImageToLabelCollectionImageFilter.IUC3LI3.New(labelNuclei, UseBackground=True)
+shapeLabelCollectionNuclei = itk.ShapeLabelCollectionImageFilter.LI3.New(labelCollectionNuclei)
 
 overlayNuclei = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerNuclei, labelNuclei, UseBackground=True)
 
+singleMaskNuclei = itk.BinaryThresholdImageFilter.IUC3IUC3.New(labelNuclei, UpperThreshold=1, LowerThreshold=1)
+maurerSingleNuclei = itk.SignedMaurerDistanceMapImageFilter.IUC3IF3.New(singleMaskNuclei, UseImageSpacing=True, SquaredDistance=False, InsideIsPositive=True)
+thresholdMaurerSingleNuclei = itk.BinaryThresholdImageFilter.IF3IUC3.New(maurerSingleNuclei)
+labelCollectionSingleNuclei = itk.LabelImageToLabelCollectionImageFilter.IUC3LI3.New(thresholdMaurerSingleNuclei, UseBackground=True)
+shapeLabelCollectionSingleNuclei = itk.ShapeLabelCollectionImageFilter.LI3.New(labelCollectionSingleNuclei)
 
 
 ##########################
@@ -33,7 +44,7 @@ overlayNuclei = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerNuclei, la
 
 readerWap = itk.lsm(channel=2)
 # mask the cytoplasm: there is too much noise
-maskNWap = itk.MaskImageFilter.IUC3IUC3IUC3.New(readerWap, maskNuclei)
+maskNWap = itk.MaskImageFilter.IUC3IUC3IUC3.New(readerWap, singleMaskNuclei)
 # again, remove some noise
 medianWap = itk.MedianImageFilter.IUC3IUC3.New(maskNWap)
 gaussianWap = itk.SmoothingRecursiveGaussianImageFilter.IUC3IUC3.New(medianWap, Sigma=0.1)
@@ -48,14 +59,17 @@ labelWap = connectedWap
 
 overlayWap = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerWap, labelWap, UseBackground=True)
 
+labelCollectionWap = itk.LabelImageToLabelCollectionImageFilter.IUC3LI3.New(labelWap, UseBackground=True)
+shapeLabelCollectionWap = itk.ShapeLabelCollectionImageFilter.LI3.New(labelCollectionWap)
 
 ##########################
 # casein
 ##########################
 
 readerCas = itk.lsm(channel=0)
+maskNCas = itk.MaskImageFilter.IUC3IUC3IUC3.New(readerCas, singleMaskNuclei)
 # again, remove some noise
-medianCas = itk.MedianImageFilter.IUC3IUC3.New(readerCas)
+medianCas = itk.MedianImageFilter.IUC3IUC3.New(maskNCas)
 gaussianCas = itk.SmoothingRecursiveGaussianImageFilter.IUC3IUC3.New(medianCas, Sigma=0.1)
 # keep the 4 more visible spots
 maxtreeCas = itk.ImageToMaximumTreeFilter.IUC3CTUC3D.New(gaussianCas)
@@ -68,8 +82,11 @@ labelCas = connectedCas
 
 overlayCas = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerCas, labelCas, UseBackground=True)
 
+labelCollectionCas = itk.LabelImageToLabelCollectionImageFilter.IUC3LI3.New(labelCas, UseBackground=True)
+shapeLabelCollectionCas = itk.ShapeLabelCollectionImageFilter.LI3.New(labelCollectionCas)
 
-labels = itk.NaryBinaryToLabelImageFilter.IUC3IUC3.New(maskNuclei, maskWap, maskCas)
+
+labels = itk.NaryBinaryToLabelImageFilter.IUC3IUC3.New(singleMaskNuclei, maskWap, maskCas)
 
 
 
@@ -79,10 +96,58 @@ def set_file_name( name ):
 	readerCas.SetFileName( name )
 
 
-set_file_name( "wap_cas_20070320_12m2.lsm" )
+# set_file_name( "wap_cas_20070320_12m2.lsm" )
 # set_file_name( "wap_cas_20070320_3m1.lsm" )
 # set_file_name( "wap_cas_20070320_9m2.lsm" )
 # set_file_name( "wap_cas_20070320_8m2.lsm" )
+set_file_name( "wap_cas_20070320_6m1.lsm" )
 
-v = itk.show(labels, MaxOpacity=0.05)
+# v = itk.show(labels, MaxOpacity=0.05)
+
+
+print '"image"', '"nucleus"', '"gene"', '"x"', '"y"', '"z"', '"dist"', '"ci"'
+
+shapeLabelCollectionNuclei.Update()
+
+for l in [l+1 for l in range(*itk.range(labelNuclei))] :
+	# set the label
+	singleMaskNuclei.SetUpperThreshold( l )
+	singleMaskNuclei.SetLowerThreshold( l )
+	
+	# update the distance map
+	maurerSingleNuclei.Update()
+	distMap = maurerSingleNuclei.GetOutput()
+	
+	nucleusSize = shapeLabelCollectionNuclei.GetOutput().GetLabelObject(l).GetPhysicalSize()
+	
+	# get info for wap
+	shapeLabelCollectionWap.Update()
+	wapObjects = shapeLabelCollectionWap.GetOutput()
+	for wl in range(1, wapObjects.GetNumberOfObjects()+1) :
+		centroid = wapObjects.GetLabelObject(wl).GetCentroid()
+		centerIdx = [int(round(v)) for v in centroid]
+		dist = distMap.GetPixel( centerIdx )
+		
+		thresholdMaurerSingleNuclei.SetLowerThreshold( dist )
+		shapeLabelCollectionSingleNuclei.Update()
+		innerSize = shapeLabelCollectionSingleNuclei.GetOutput().GetLabelObject(255).GetPhysicalSize()
+		ci = ( nucleusSize - innerSize ) / nucleusSize
+		
+		print '"%s"' % readerNuclei.GetFileName(), l, '"wap"', centerIdx[0], centerIdx[1], centerIdx[2], dist, ci
+		
+	# get info for cas
+	shapeLabelCollectionCas.Update()
+	casObjects = shapeLabelCollectionCas.GetOutput()
+	for wl in range(1, casObjects.GetNumberOfObjects()+1) :
+		centroid = casObjects.GetLabelObject(wl).GetCentroid()
+		centerIdx = [int(round(v)) for v in centroid]
+		dist = distMap.GetPixel( centerIdx )
+		
+		thresholdMaurerSingleNuclei.SetLowerThreshold( dist )
+		shapeLabelCollectionSingleNuclei.Update()
+		innerSize = shapeLabelCollectionSingleNuclei.GetOutput().GetLabelObject(255).GetPhysicalSize()
+		ci = ( nucleusSize - innerSize ) / nucleusSize
+		
+		print '"%s"' % readerNuclei.GetFileName(), l, '"cas"', centerIdx[0], centerIdx[1], centerIdx[2], dist, ci
+		
 

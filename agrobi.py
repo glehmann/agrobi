@@ -14,7 +14,7 @@ medianNuclei = itk.MedianImageFilter.IUC3IUC3.New(readerNuclei)
 gaussianNuclei = itk.SmoothingRecursiveGaussianImageFilter.IUC3IUC3.New(medianNuclei, Sigma=0.36)
 inputNuclei = gaussianNuclei
 # an automatic threshold
-kappaNuclei = itk.KappaSigmaThresholdImageFilter.IUC3IUC3.New(inputNuclei)
+kappaNuclei = itk.KappaSigmaThresholdImageFilter.IUC3IUC3.New(inputNuclei, Kappa=2.3)
 # fill the holes
 fillHoles2D = itk.GrayscaleFillholeImageFilter.IUC2IUC2.New(auto_progress=False)
 fillHolesNuclei = itk.SliceBySliceImageFilter.IUC3IUC3.New(kappaNuclei, Filter=fillHoles2D.GetPointer())

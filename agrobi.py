@@ -24,7 +24,7 @@ binarySizeOpeningNuclei = itk.BinaryShapeOpeningImageFilter.IUC3.New(fillHolesNu
 maskNuclei = binarySizeOpeningNuclei
 # split and labelize the nuclei
 maurerNuclei = itk.SignedMaurerDistanceMapImageFilter.IUC3IF3.New(maskNuclei, UseImageSpacing=True)
-watershedNuclei = itk.MorphologicalWatershedImageFilter.IF3IUC3.New(maurerNuclei, Level=1, MarkWatershedLine=False)
+watershedNuclei = itk.MorphologicalWatershedImageFilter.IF3IUC3.New(maurerNuclei, Level=1.5, MarkWatershedLine=False, FullyConnected=True)
 maskWatershedNuclei = itk.MaskImageFilter.IUC3IUC3IUC3.New(watershedNuclei, maskNuclei)
 labelNuclei = maskWatershedNuclei
 

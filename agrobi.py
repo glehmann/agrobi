@@ -52,7 +52,7 @@ medianWap = itk.MedianImageFilter.IUC3IUC3.New(maskNWap)
 gaussianWap = itk.SmoothingRecursiveGaussianImageFilter.IUC3IUC3.New(medianWap, Sigma=0.1)
 # keep the 4 more visible spots
 maxtreeWap = itk.ImageToMaximumTreeFilter.IUC3CTUC3D.New(gaussianWap)
-intensityMaxtreeWap = itk.IntensityComponentTreeFilter.CTUC3D.New(maxtreeWap)
+intensityMaxtreeWap = itk.LocalIntensityComponentTreeFilter.CTUC3D.New(maxtreeWap)
 keepMaxtreeWap = itk.KeepNLobesComponentTreeFilter.CTUC3D.New(intensityMaxtreeWap, NumberOfLobes=4)
 leavesWap = itk.ComponentTreeLeavesToBinaryImageFilter.CTUC3DIUC3.New(keepMaxtreeWap)
 maskWap = leavesWap
@@ -75,7 +75,7 @@ medianCas = itk.MedianImageFilter.IUC3IUC3.New(maskNCas)
 gaussianCas = itk.SmoothingRecursiveGaussianImageFilter.IUC3IUC3.New(medianCas, Sigma=0.1)
 # keep the 4 more visible spots
 maxtreeCas = itk.ImageToMaximumTreeFilter.IUC3CTUC3D.New(gaussianCas)
-intensityMaxtreeCas = itk.IntensityComponentTreeFilter.CTUC3D.New(maxtreeCas)
+intensityMaxtreeCas = itk.LocalIntensityComponentTreeFilter.CTUC3D.New(maxtreeCas)
 keepMaxtreeCas = itk.KeepNLobesComponentTreeFilter.CTUC3D.New(intensityMaxtreeCas, NumberOfLobes=4)
 leavesCas = itk.ComponentTreeLeavesToBinaryImageFilter.CTUC3DIUC3.New(keepMaxtreeCas)
 maskCas = leavesCas

@@ -59,7 +59,8 @@ maskWap = leavesWap
 connectedWap = itk.ConnectedComponentImageFilter.IUC3IUC3.New(leavesWap, FullyConnected=True)
 labelWap = connectedWap
 
-overlayWap = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerWap, labelWap, UseBackground=True)
+labelWapNuclei = itk.NaryBinaryToLabelImageFilter.IUC3IUC3.New(singleMaskNuclei, maskWap)
+overlayWap = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerWap, labelWapNuclei, UseBackground=True)
 
 labelCollectionWap = itk.LabelImageToLabelCollectionImageFilter.IUC3LI3.New(labelWap, UseBackground=True)
 shapeLabelCollectionWap = itk.ShapeLabelCollectionImageFilter.LI3.New(labelCollectionWap)
@@ -82,7 +83,8 @@ maskCas = leavesCas
 connectedCas = itk.ConnectedComponentImageFilter.IUC3IUC3.New(leavesCas, FullyConnected=True)
 labelCas = connectedCas
 
-overlayCas = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerCas, labelCas, UseBackground=True)
+labelCasNuclei = itk.NaryBinaryToLabelImageFilter.IUC3IUC3.New(singleMaskNuclei, maskCas)
+overlayCas = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerCas, labelCasNuclei, UseBackground=True)
 
 labelCollectionCas = itk.LabelImageToLabelCollectionImageFilter.IUC3LI3.New(labelCas, UseBackground=True)
 shapeLabelCollectionCas = itk.ShapeLabelCollectionImageFilter.LI3.New(labelCollectionCas)

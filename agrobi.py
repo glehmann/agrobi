@@ -1,3 +1,5 @@
+
+import sys
 import itk
 itk.auto_progress()
 itk.auto_not_in_place()
@@ -100,9 +102,9 @@ def set_file_name( name ):
 # set_file_name( "wap_cas_20070320_3m1.lsm" )
 # set_file_name( "wap_cas_20070320_9m2.lsm" )
 # set_file_name( "wap_cas_20070320_8m2.lsm" )
-set_file_name( "wap_cas_20070320_6m1.lsm" )
+# set_file_name( "wap_cas_20070320_6m1.lsm" )
 
-# v = itk.show(labels, MaxOpacity=0.05)
+set_file_name( sys.argv[1] )
 
 
 print '"image"', '"nucleus"', '"gene"', '"x"', '"y"', '"z"', '"dist"', '"ci"'

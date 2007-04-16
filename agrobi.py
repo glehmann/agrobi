@@ -26,7 +26,8 @@ maskNuclei = binarySizeOpeningNuclei
 maurerNuclei = itk.SignedMaurerDistanceMapImageFilter.IUC3IF3.New(maskNuclei, UseImageSpacing=True)
 watershedNuclei = itk.MorphologicalWatershedImageFilter.IF3IUC3.New(maurerNuclei, Level=1.5, MarkWatershedLine=False, FullyConnected=True)
 maskWatershedNuclei = itk.MaskImageFilter.IUC3IUC3IUC3.New(watershedNuclei, maskNuclei)
-labelNuclei = maskWatershedNuclei
+labelSizeOnBorderOpeningNuclei = itk.LabelShapeOpeningImageFilter.IUC3.New(maskWatershedNuclei, Attribute="SizeOnBorder", Lambda=1000, ReverseOrdering=True)
+labelNuclei = labelSizeOnBorderOpeningNuclei
 
 labelCollectionNuclei = itk.LabelImageToLabelCollectionImageFilter.IUC3LI3.New(labelNuclei, UseBackground=True)
 shapeLabelCollectionNuclei = itk.ShapeLabelCollectionImageFilter.LI3.New(labelCollectionNuclei)

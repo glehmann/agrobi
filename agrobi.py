@@ -52,8 +52,9 @@ maskNWap = itk.MaskImageFilter.IUC3IUC3IUC3.New(readerWap, singleMaskNuclei)
 # again, remove some noise
 medianWap = itk.MedianImageFilter.IUC3IUC3.New(maskNWap)
 gaussianWap = itk.SmoothingRecursiveGaussianImageFilter.IUC3IUC3.New(medianWap, Sigma=0.1)
+inputWap = gaussianWap
 # keep the 4 more visible spots
-maxtreeWap = itk.ImageToMaximumTreeFilter.IUC3CTUC3D.New(gaussianWap)
+maxtreeWap = itk.ImageToMaximumTreeFilter.IUC3CTUC3D.New(inputWap)
 intensityMaxtreeWap = itk.LocalIntensityComponentTreeFilter.CTUC3D.New(maxtreeWap)
 keepMaxtreeWap = itk.KeepNLobesComponentTreeFilter.CTUC3D.New(intensityMaxtreeWap, NumberOfLobes=4)
 leavesWap = itk.ComponentTreeLeavesToBinaryImageFilter.CTUC3DIUC3.New(keepMaxtreeWap)
@@ -65,7 +66,7 @@ labelWapNuclei = itk.NaryBinaryToLabelImageFilter.IUC3IUC3.New(singleMaskNuclei,
 overlayWap = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerWap, labelWapNuclei, UseBackground=True)
 
 labelCollectionWap = itk.LabelImageToLabelCollectionImageFilter.IUC3LI3.New(labelWap, UseBackground=True)
-shapeLabelCollectionWap = itk.ShapeLabelCollectionImageFilter.LI3.New(labelCollectionWap)
+statsLabelCollectionWap = itk.StatisticsLabelCollectionImageFilter.LI3IUC3.New(labelCollectionWap, inputWap)
 
 ##########################
 # casein
@@ -131,11 +132,11 @@ for l in ls :
 	nucleusSize = shapeLabelCollectionNuclei.GetOutput().GetLabelObject(l).GetPhysicalSize()
 	
 	# get info for wap
-	shapeLabelCollectionWap.Update()
-	wapObjects = shapeLabelCollectionWap.GetOutput()
+	statsLabelCollectionWap.Update()
+	wapObjects = statsLabelCollectionWap.GetOutput()
 	for wl in range(1, wapObjects.GetNumberOfObjects()+1) :
-		centroid = wapObjects.GetLabelObject(wl).GetCentroid()
-		centerIdx = [int(round(v)) for v in centroid]
+		centerIdx = wapObjects.GetLabelObject(wl).GetMaximumIndex()
+		# centerIdx = [int(round(v)) for v in centroid]
 		dist = distMap.GetPixel( centerIdx )
 		
 		thresholdMaurerSingleNuclei.SetLowerThreshold( dist )

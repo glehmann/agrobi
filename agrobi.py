@@ -80,7 +80,8 @@ gaussianCas = itk.SmoothingRecursiveGaussianImageFilter.IUC3IUC3.New(medianCas, 
 inputCas = gaussianCas
 # keep the 4 more visible spots
 thresholdCas = itk.BinaryThresholdImageFilter.IUC3IUC3.New(inputCas, LowerThreshold=59)
-maskCas = thresholdCas
+binarySizeOpeningCas = itk.BinaryShapeOpeningImageFilter.IUC3.New(thresholdCas, Attribute="PhysicalSize", Lambda=0.03)
+maskCas = binarySizeOpeningCas
 connectedCas = itk.ConnectedComponentImageFilter.IUC3IUC3.New(maskCas, FullyConnected=True)
 labelCas = connectedCas
 

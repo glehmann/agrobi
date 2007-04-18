@@ -109,9 +109,9 @@ def set_file_name( name ):
 set_file_name( sys.argv[1] )
 
 # v = itk.show(labels, MaxOpacity=0.05)
-itk.write(overlayNuclei, readerNuclei.GetFileName()+"-nuclei.tif")
-itk.write(overlayWap, readerWap.GetFileName()+"-wap.tif")
-itk.write(overlayCas, readerCas.GetFileName()+"-cas.tif")
+itk.write(overlayNuclei, readerNuclei.GetFileName()+"-nuclei.tif", True)
+itk.write(overlayWap, readerWap.GetFileName()+"-wap.tif", True)
+itk.write(overlayCas, readerCas.GetFileName()+"-cas.tif", True)
 
 print '"img"', '"nucleus"', '"gene"', '"x"', '"y"', '"z"', '"dist"', '"ci"'
 

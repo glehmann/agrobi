@@ -62,7 +62,7 @@ maskWap = leavesWap
 connectedWap = itk.ConnectedComponentImageFilter.IUC3IUC3.New(leavesWap, FullyConnected=True)
 labelWap = connectedWap
 
-labelWapNuclei = itk.NaryRelabelImageFilter.IUC3IUC3.New(singleMaskNuclei, labelWap)
+labelWapNuclei = itk.NaryRelabelImageFilter.IUC3IUC3.New(labelNuclei)
 overlayWap = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerWap, labelWapNuclei, UseBackground=True)
 
 labelCollectionWap = itk.LabelImageToLabelCollectionImageFilter.IUC3LI3.New(labelWap, UseBackground=True)
@@ -84,7 +84,7 @@ maskCas = thresholdCas
 connectedCas = itk.ConnectedComponentImageFilter.IUC3IUC3.New(maskCas, FullyConnected=True)
 labelCas = connectedCas
 
-labelCasNuclei = itk.NaryRelabelImageFilter.IUC3IUC3.New(singleMaskNuclei, labelCas)
+labelCasNuclei = itk.NaryRelabelImageFilter.IUC3IUC3.New(labelNuclei)
 overlayCas = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerCas, labelCasNuclei, UseBackground=True)
 
 labelCollectionCas = itk.LabelImageToLabelCollectionImageFilter.IUC3LI3.New(labelCas, UseBackground=True)
@@ -111,12 +111,15 @@ set_file_name( sys.argv[1] )
 
 # v = itk.show(labels, MaxOpacity=0.05)
 itk.write(overlayNuclei, readerNuclei.GetFileName()+"-nuclei.tif", True)
-itk.write(overlayWap, readerWap.GetFileName()+"-wap.tif", True)
-itk.write(overlayCas, readerCas.GetFileName()+"-cas.tif", True)
 
 print '"img"', '"nucleus"', '"gene"', '"x"', '"y"', '"z"', '"dist"', '"ci"'
 
 shapeLabelCollectionNuclei.Update()
+
+
+caseins = []
+waps = []
+imgDuplicator = itk.ImageDuplicator.IUC3.New()
 
 ls = [l+1 for l in range(*itk.range(labelNuclei))]
 
@@ -146,6 +149,11 @@ for l in ls :
 		
 		print '"%s"' % readerNuclei.GetFileName(), l, '"wap"', centerIdx[0], centerIdx[1], centerIdx[2], dist, ci
 		
+		# put the segmented wap in a new image
+		imgDuplicator.SetInputImage( labelWap.GetOutput() )
+		imgDuplicator.Update()
+		waps.append( imgDuplicator.GetOutput() )
+		
 	# get info for cas
 	shapeLabelCollectionCas.Update()
 	casObjects = shapeLabelCollectionCas.GetOutput()
@@ -161,4 +169,16 @@ for l in ls :
 		
 		print '"%s"' % readerNuclei.GetFileName(), l, '"cas"', centerIdx[0], centerIdx[1], centerIdx[2], dist, ci
 		
+		# put the segmented cas in a new image
+		imgDuplicator.SetInputImage( labelCas.GetOutput() )
+		imgDuplicator.Update()
+		caseins.append( imgDuplicator.GetOutput() )
+		
+
+for i, (cas, wap) in enumerate( zip( caseins, waps ) ):
+	labelCasNuclei.SetInput( i+1, cas)
+	labelWapNuclei.SetInput( i+1, wap)
+	
+itk.write(overlayWap, readerWap.GetFileName()+"-wap.tif", True)
+itk.write(overlayCas, readerCas.GetFileName()+"-cas.tif", True)
 

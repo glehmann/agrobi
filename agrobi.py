@@ -76,13 +76,11 @@ maskNCas = itk.MaskImageFilter.IUC3IUC3IUC3.New(readerCas, singleMaskNuclei)
 # again, remove some noise
 medianCas = itk.MedianImageFilter.IUC3IUC3.New(maskNCas)
 gaussianCas = itk.SmoothingRecursiveGaussianImageFilter.IUC3IUC3.New(medianCas, Sigma=0.1)
+inputCas = gaussianCas
 # keep the 4 more visible spots
-maxtreeCas = itk.ImageToMaximumTreeFilter.IUC3CTUC3D.New(gaussianCas)
-intensityMaxtreeCas = itk.LocalIntensityComponentTreeFilter.CTUC3D.New(maxtreeCas)
-keepMaxtreeCas = itk.KeepNLobesComponentTreeFilter.CTUC3D.New(intensityMaxtreeCas, NumberOfLobes=4)
-leavesCas = itk.ComponentTreeLeavesToBinaryImageFilter.CTUC3DIUC3.New(keepMaxtreeCas)
-maskCas = leavesCas
-connectedCas = itk.ConnectedComponentImageFilter.IUC3IUC3.New(leavesCas, FullyConnected=True)
+thresholdCas = itk.BinaryThresholdImageFilter.IUC3IUC3.New(inputCas, LowerThreshold=59)
+maskCas = thresholdCas
+connectedCas = itk.ConnectedComponentImageFilter.IUC3IUC3.New(maskCas, FullyConnected=True)
 labelCas = connectedCas
 
 labelCasNuclei = itk.NaryBinaryToLabelImageFilter.IUC3IUC3.New(singleMaskNuclei, maskCas)

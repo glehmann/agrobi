@@ -108,12 +108,12 @@ def set_file_name( name ):
 # set_file_name( "wap_cas_20070320_8m2.lsm" )
 # set_file_name( "wap_cas_20070320_6m1.lsm" )
 
-set_file_name( sys.argv[1] )
+set_file_name( sys.argv[2] )
 
 # v = itk.show(labels, MaxOpacity=0.05)
 itk.write(overlayNuclei, readerNuclei.GetFileName()+"-nuclei.tif", True)
 
-print '"img"', '"nucleus"', '"gene"', '"x"', '"y"', '"z"', '"dist"', '"ci"'
+print '"stimulation"', '"img"', '"nucleus"', '"gene"', '"x"', '"y"', '"z"', '"dist"', '"ci"'
 
 shapeLabelCollectionNuclei.Update()
 
@@ -148,7 +148,7 @@ for l in ls :
 		innerSize = shapeLabelCollectionSingleNuclei.GetOutput().GetLabelObject(255).GetPhysicalSize()
 		ci = ( nucleusSize - innerSize ) / nucleusSize
 		
-		print '"%s"' % readerNuclei.GetFileName(), l, '"wap"', centerIdx[0], centerIdx[1], centerIdx[2], dist, ci
+		print '"%s"' % sys.argv[1], '"%s"' % readerNuclei.GetFileName(), l, '"wap"', centerIdx[0], centerIdx[1], centerIdx[2], dist, ci
 		
 		# put the segmented wap in a new image
 		imgDuplicator.SetInputImage( labelWap.GetOutput() )
@@ -168,7 +168,7 @@ for l in ls :
 		innerSize = shapeLabelCollectionSingleNuclei.GetOutput().GetLabelObject(255).GetPhysicalSize()
 		ci = ( nucleusSize - innerSize ) / nucleusSize
 		
-		print '"%s"' % readerNuclei.GetFileName(), l, '"cas"', centerIdx[0], centerIdx[1], centerIdx[2], dist, ci
+		print '"%s"' % sys.argv[1], '"%s"' % readerNuclei.GetFileName(), l, '"cas"', centerIdx[0], centerIdx[1], centerIdx[2], dist, ci
 		
 		# put the segmented cas in a new image
 		imgDuplicator.SetInputImage( labelCas.GetOutput() )

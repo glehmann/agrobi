@@ -26,17 +26,23 @@ maskNuclei = binarySizeOpeningNuclei
 maurerNuclei = itk.SignedMaurerDistanceMapImageFilter.IUC3IF3.New(maskNuclei, UseImageSpacing=True)
 watershedNuclei = itk.MorphologicalWatershedImageFilter.IF3IUC3.New(maurerNuclei, Level=1.5, MarkWatershedLine=False) #, FullyConnected=True)
 maskWatershedNuclei = itk.MaskImageFilter.IUC3IUC3IUC3.New(watershedNuclei, maskNuclei)
+# remove the nucleus on the border - note that they can touch "a little" the border
 labelSizeOnBorderOpeningNuclei = itk.LabelShapeOpeningImageFilter.IUC3.New(maskWatershedNuclei, Attribute="SizeOnBorder", Lambda=1500, ReverseOrdering=True)
+# relabel the objects so we are sure to get consecutive labels after the opening
 relabelNuclei = itk.ShapeRelabelImageFilter.IUC3.New(labelSizeOnBorderOpeningNuclei)
 labelNuclei = relabelNuclei
 
+# create the label collection to get some data about the nucleus
 labelCollectionNuclei = itk.LabelImageToLabelCollectionImageFilter.IUC3LI3.New(labelNuclei, UseBackground=True)
 shapeLabelCollectionNuclei = itk.ShapeLabelCollectionImageFilter.LI3.New(labelCollectionNuclei)
 
 overlayNuclei = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerNuclei, labelNuclei, UseBackground=True)
 
+# select a single nucleus - see the loop at the end
 singleMaskNuclei = itk.BinaryThresholdImageFilter.IUC3IUC3.New(labelNuclei, UpperThreshold=1, LowerThreshold=1)
+# and compute the distance map. It is used too get the distance of the spot from the nuclear envelop
 maurerSingleNuclei = itk.SignedMaurerDistanceMapImageFilter.IUC3IF3.New(singleMaskNuclei, UseImageSpacing=True, SquaredDistance=False, InsideIsPositive=True)
+# the thresholded distance map, to compute the CI
 thresholdMaurerSingleNuclei = itk.BinaryThresholdImageFilter.IF3IUC3.New(maurerSingleNuclei)
 labelCollectionSingleNuclei = itk.LabelImageToLabelCollectionImageFilter.IUC3LI3.New(thresholdMaurerSingleNuclei, UseBackground=True)
 shapeLabelCollectionSingleNuclei = itk.ShapeLabelCollectionImageFilter.LI3.New(labelCollectionSingleNuclei)
@@ -53,10 +59,12 @@ maskNWap = itk.MaskImageFilter.IUC3IUC3IUC3.New(readerWap, singleMaskNuclei)
 medianWap = itk.MedianImageFilter.IUC3IUC3.New(maskNWap)
 gaussianWap = itk.SmoothingRecursiveGaussianImageFilter.IUC3IUC3.New(medianWap, Sigma=0.1)
 inputWap = gaussianWap
-# keep the 4 more visible spots
+# wap images are quite difficult to segment, because their is lot of noise which look like... wap spots.
+# so keep the 4 more visible spots in the image, after have removed the region in the componenents too
+# big to be a spot
 maxtreeWap = itk.ImageToMaximumTreeFilter.IUC3CTUC3D.New(inputWap)
 sizeMaxtreeWap = itk.PhysicalSizeComponentTreeFilter.CTUC3D.New(maxtreeWap)
-filteredSizeMaxtreeWap = itk.AttributeFilteringComponentTreeFilter.CTUC3D.New(sizeMaxtreeWap, Threshold=0.8, ReverseOrdering=True, FilteringType=3) #3-> subtract
+filteredSizeMaxtreeWap = itk.AttributeFilteringComponentTreeFilter.CTUC3D.New(sizeMaxtreeWap, Lambda=0.8, ReverseOrdering=True, FilteringType="Subtract")
 intensityMaxtreeWap = itk.LocalIntensityComponentTreeFilter.CTUC3D.New(filteredSizeMaxtreeWap)
 keepMaxtreeWap = itk.KeepNLobesComponentTreeFilter.CTUC3D.New(intensityMaxtreeWap, NumberOfLobes=4)
 leavesWap = itk.ComponentTreeLeavesToBinaryImageFilter.CTUC3DIUC3.New(keepMaxtreeWap)
@@ -115,7 +123,7 @@ set_file_name( sys.argv[2] )
 # v = itk.show(labels, MaxOpacity=0.05)
 itk.write(overlayNuclei, readerNuclei.GetFileName()+"-nuclei.tif", True)
 
-print '"stimulation"', '"img"', '"nucleus"', '"gene"', '"x"', '"y"', '"z"', '"dist"', '"ci"'
+print '"stimulation"', '"img"', '"nucleus"', '"gene"', '"x"', '"y"', '"z"', '"dist"', '"ci"', '"nucleusElongation"', '"nucleusSize"'
 
 shapeLabelCollectionNuclei.Update()
 
@@ -136,6 +144,7 @@ for l in ls :
 	distMap = maurerSingleNuclei.GetOutput()
 	
 	nucleusSize = shapeLabelCollectionNuclei.GetOutput().GetLabelObject(l).GetPhysicalSize()
+	nucleusElongation = shapeLabelCollectionNuclei.GetOutput().GetLabelObject(l).GetRegionElongation()
 	
 	# get info for wap
 	statsLabelCollectionWap.Update()
@@ -150,7 +159,7 @@ for l in ls :
 		innerSize = shapeLabelCollectionSingleNuclei.GetOutput().GetLabelObject(255).GetPhysicalSize()
 		ci = ( nucleusSize - innerSize ) / nucleusSize
 		
-		print '"%s"' % sys.argv[1], '"%s"' % readerNuclei.GetFileName(), l, '"wap"', centerIdx[0], centerIdx[1], centerIdx[2], dist, ci
+		print '"%s"' % sys.argv[1], '"%s"' % readerNuclei.GetFileName(), l, '"wap"', centerIdx[0], centerIdx[1], centerIdx[2], dist, ci, nucleusElongation, nucleusSize
 		
 		# put the segmented wap in a new image
 		imgDuplicator.SetInputImage( labelWap.GetOutput() )
@@ -170,7 +179,7 @@ for l in ls :
 		innerSize = shapeLabelCollectionSingleNuclei.GetOutput().GetLabelObject(255).GetPhysicalSize()
 		ci = ( nucleusSize - innerSize ) / nucleusSize
 		
-		print '"%s"' % sys.argv[1], '"%s"' % readerNuclei.GetFileName(), l, '"cas"', centerIdx[0], centerIdx[1], centerIdx[2], dist, ci
+		print '"%s"' % sys.argv[1], '"%s"' % readerNuclei.GetFileName(), l, '"cas"', centerIdx[0], centerIdx[1], centerIdx[2], dist, ci, nucleusElongation, nucleusSize
 		
 		# put the segmented cas in a new image
 		imgDuplicator.SetInputImage( labelCas.GetOutput() )

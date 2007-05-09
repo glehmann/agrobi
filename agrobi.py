@@ -84,11 +84,16 @@ overlayNuclei = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerNuclei, la
 singleMaskNuclei = itk.BinaryThresholdImageFilter.IUC3IUC3.New(labelNuclei, UpperThreshold=1, LowerThreshold=1)
 singleMaskRobustNuclei = itk.BinaryThresholdImageFilter.IUC3IUC3.New(labelRobustNuclei, UpperThreshold=1, LowerThreshold=1)
 # and compute the distance map. It is used too get the distance of the spot from the nuclear envelop
-maurerSingleNuclei = itk.SignedMaurerDistanceMapImageFilter.IUC3IF3.New(singleMaskRobustNuclei, UseImageSpacing=True, SquaredDistance=False, InsideIsPositive=True)
+# -- the mask is inverted to avoid the 0 distance pixels on the border of the object. We prefer to have them outside of the object.
+invertedSingleMaskRobustNuclei = itk.InvertIntensityImageFilter.IUC3IUC3.New(singleMaskRobustNuclei)
+maurerSingleNuclei = itk.SignedMaurerDistanceMapImageFilter.IUC3IF3.New(invertedSingleMaskRobustNuclei, UseImageSpacing=True, SquaredDistance=False) #, InsideIsPositive=True)
+# use an interpolator to get the distance at the exact center of gravity position
+maurerInterpolator = itk.LinearInterpolateImageFunction.IF3D.New(maurerSingleNuclei)
 # the thresholded distance map, to compute the CI
 thresholdMaurerSingleNuclei = itk.BinaryThresholdImageFilter.IF3IUC3.New(maurerSingleNuclei)
 labelCollectionSingleNuclei = itk.LabelImageToLabelCollectionImageFilter.IUC3LI3.New(thresholdMaurerSingleNuclei, UseBackground=True)
 shapeLabelCollectionSingleNuclei = itk.ShapeLabelCollectionImageFilter.LI3.New(labelCollectionSingleNuclei)
+
 
 
 ##########################
@@ -189,7 +194,6 @@ for l in ls :
 	
 	# update the distance map
 	maurerSingleNuclei.Update()
-	distMap = maurerSingleNuclei.GetOutput()
 	
 	nucleusObject = statisticsLabelCollectionNuclei.GetOutput().GetLabelObject(l)
 	nucleusSize = nucleusObject.GetPhysicalSize()
@@ -204,9 +208,10 @@ for l in ls :
 	statsLabelCollectionWap.Update()
 	wapObjects = statsLabelCollectionWap.GetOutput()
 	for wl in range(1, wapObjects.GetNumberOfObjects()+1) :
-		centroid = wapObjects.GetLabelObject(wl).GetCenterOfGravity()
-		centerIdx = [int(round(v/s)) for v, s in zip(centroid, spacing)]
-		dist = distMap.GetPixel( centerIdx )
+		cog = wapObjects.GetLabelObject(wl).GetCenterOfGravity()
+		centerContinuousIdx = [v/s for v, s in zip(cog, spacing)]
+		centerIdx = [int(round(v)) for v in centerContinuousIdx]
+		dist = maurerInterpolator.EvaluateAtContinuousIndex( centerContinuousIdx )
 		
 		if dist > 0:
 		  thresholdMaurerSingleNuclei.SetLowerThreshold( dist )
@@ -227,9 +232,10 @@ for l in ls :
 	statisticsLabelCollectionCas.Update()
 	casObjects = statisticsLabelCollectionCas.GetOutput()
 	for wl in range(1, casObjects.GetNumberOfObjects()+1) :
-		centroid = casObjects.GetLabelObject(wl).GetCenterOfGravity()
-		centerIdx = [int(round(v/s)) for v, s in zip(centroid, spacing)]
-		dist = distMap.GetPixel( centerIdx )
+		cog = wapObjects.GetLabelObject(wl).GetCenterOfGravity()
+		centerContinuousIdx = [v/s for v, s in zip(cog, spacing)]
+		centerIdx = [int(round(v)) for v in centerContinuousIdx]
+		dist = maurerInterpolator.EvaluateAtContinuousIndex( centerContinuousIdx )
 		
 		if dist > 0:
 		  thresholdMaurerSingleNuclei.SetLowerThreshold( dist )

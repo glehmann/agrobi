@@ -229,7 +229,7 @@ for l in ls :
 	statisticsLabelCollectionCas.Update()
 	casObjects = statisticsLabelCollectionCas.GetOutput()
 	for wl in range(1, casObjects.GetNumberOfObjects()+1) :
-		cog = wapObjects.GetLabelObject(wl).GetCenterOfGravity()
+		cog = casObjects.GetLabelObject(wl).GetCenterOfGravity()
 		centerContinuousIdx = [v/s for v, s in zip(cog, spacing)]
 		centerIdx = [int(round(v)) for v in centerContinuousIdx]
 		dist = maurerInterpolator.EvaluateAtContinuousIndex( centerContinuousIdx )

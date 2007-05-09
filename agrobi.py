@@ -213,13 +213,10 @@ for l in ls :
 		centerIdx = [int(round(v)) for v in centerContinuousIdx]
 		dist = maurerInterpolator.EvaluateAtContinuousIndex( centerContinuousIdx )
 		
-		if dist > 0:
-		  thresholdMaurerSingleNuclei.SetLowerThreshold( dist )
-		  shapeLabelCollectionSingleNuclei.Update()
-		  innerSize = shapeLabelCollectionSingleNuclei.GetOutput().GetLabelObject(255).GetPhysicalSize()
-		  ci = ( nucleusSize - innerSize ) / nucleusSize
-	        else:
-		  ci = 0
+		thresholdMaurerSingleNuclei.SetLowerThreshold( dist )
+		shapeLabelCollectionSingleNuclei.Update()
+		innerSize = shapeLabelCollectionSingleNuclei.GetOutput().GetLabelObject(255).GetPhysicalSize()
+		ci = ( nucleusSize - innerSize ) / nucleusSize
 		  
 		print >> genesFile, '"%s"' % sys.argv[1], '"%s"' % readerNuclei.GetFileName(), l, '"wap"', centerIdx[0], centerIdx[1], centerIdx[2], dist, ci
 		
@@ -237,13 +234,10 @@ for l in ls :
 		centerIdx = [int(round(v)) for v in centerContinuousIdx]
 		dist = maurerInterpolator.EvaluateAtContinuousIndex( centerContinuousIdx )
 		
-		if dist > 0:
-		  thresholdMaurerSingleNuclei.SetLowerThreshold( dist )
-		  shapeLabelCollectionSingleNuclei.Update()
-		  innerSize = shapeLabelCollectionSingleNuclei.GetOutput().GetLabelObject(255).GetPhysicalSize()
-		  ci = ( nucleusSize - innerSize ) / nucleusSize
-	        else:
-		  ci = 0
+		thresholdMaurerSingleNuclei.SetLowerThreshold( dist )
+		shapeLabelCollectionSingleNuclei.Update()
+		innerSize = shapeLabelCollectionSingleNuclei.GetOutput().GetLabelObject(255).GetPhysicalSize()
+		ci = ( nucleusSize - innerSize ) / nucleusSize
 		
 		print >> genesFile, '"%s"' % sys.argv[1], '"%s"' % readerNuclei.GetFileName(), l, '"cas"', centerIdx[0], centerIdx[1], centerIdx[2], dist, ci
 		

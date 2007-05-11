@@ -149,7 +149,7 @@ inputWap = gaussianWap
 maxtreeWap = itk.ImageToMaximumTreeFilter.IUC3CTUC3D.New(inputWap)
 sizeMaxtreeWap = itk.PhysicalSizeComponentTreeFilter.CTUC3D.New(maxtreeWap)
 filteredSizeMaxtreeWap = itk.AttributeFilteringComponentTreeFilter.CTUC3D.New(sizeMaxtreeWap, Lambda=0.8, ReverseOrdering=True, FilteringType="Subtract")
-intensityMaxtreeWap = itk.LocalIntensityComponentTreeFilter.CTUC3D.New(filteredSizeMaxtreeWap)
+intensityMaxtreeWap = itk.VolumeLevellingComponentTreeFilter.CTUC3D.New(filteredSizeMaxtreeWap)
 keepMaxtreeWap = itk.KeepNLobesComponentTreeFilter.CTUC3D.New(intensityMaxtreeWap, NumberOfLobes=4)
 leavesWap = itk.ComponentTreeLeavesToBinaryImageFilter.CTUC3DIUC3.New(keepMaxtreeWap)
 maskWap = leavesWap

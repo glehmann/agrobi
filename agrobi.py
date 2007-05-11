@@ -30,6 +30,32 @@ if os.path.getsize( genesFileName ) == 0:
   genesFile.write( '"stimulation" "img" "nucleus" "gene" "x" "y" "z" "dist" "ci"\n' )
   
 
+# create a cross structuring element - why I haven't implemented that in the FlatStructuringElement class, as well as a Ball()
+# method which support the spacing ?
+crossImage = itk.Image.UC3.New(Regions=[11,11,7])
+crossImage.Allocate()
+crossImage.FillBuffer(0)
+for i in range(11):
+  crossImage.SetPixel((5,i,3), 255)
+  crossImage.SetPixel((i,5,3), 255)
+for i in range(7):
+  crossImage.SetPixel((5,5,i), 255)
+crossKernel = itk.FlatStructuringElement._3.FromImageUC(crossImage)
+
+# and create a dilate filter to draw the crosses on the cas and wap images
+crossDilate = itk.BinaryDilateImageFilter.IUC3IUC3SE3.New(Kernel=crossKernel, ForegroundValue=200)
+
+
+
+# a function to copy the output of a filter in a new image
+def copyImage( f ):
+	f.Update()
+	i = f.GetOutput()
+	imgDuplicator = itk.ImageDuplicator[i].New(i)
+	imgDuplicator.Update()
+	return imgDuplicator.GetOutput()
+	
+
 
 ##########################
 # nuclei
@@ -133,7 +159,7 @@ maskWap = leavesWap
 connectedWap = itk.ConnectedComponentImageFilter.IUC3IUC3.New(leavesWap, FullyConnected=True)
 labelWap = connectedWap
 
-labelWapNuclei = itk.NaryRelabelImageFilter.IUC3IUC3.New(labelRobustNuclei)
+labelWapNuclei = itk.NaryRelabelImageFilter.IUC3IUC3.New(labelNuclei, labelRobustNuclei)
 overlayWap = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerWap, labelWapNuclei, UseBackground=True)
 
 labelCollectionWap = itk.LabelImageToLabelCollectionImageFilter.IUC3LI3.New(labelWap, UseBackground=True)
@@ -156,7 +182,7 @@ maskCas = binarySizeOpeningCas
 connectedCas = itk.ConnectedComponentImageFilter.IUC3IUC3.New(maskCas, FullyConnected=True)
 labelCas = connectedCas
 
-labelCasNuclei = itk.NaryRelabelImageFilter.IUC3IUC3.New(labelRobustNuclei)
+labelCasNuclei = itk.NaryRelabelImageFilter.IUC3IUC3.New(labelNuclei, labelRobustNuclei)
 overlayCas = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerCas, labelCasNuclei, UseBackground=True)
 
 labelCollectionCas = itk.LabelImageToLabelCollectionImageFilter.IUC3LI3.New(labelCas, UseBackground=True)
@@ -164,7 +190,6 @@ statisticsLabelCollectionCas = itk.StatisticsLabelCollectionImageFilter.LI3IUC3.
 
 
 labels = itk.NaryBinaryToLabelImageFilter.IUC3IUC3.New(maskRobustNuclei, maskWap, maskCas)
-
 
 
 def set_file_name( name ):
@@ -180,7 +205,7 @@ def set_file_name( name ):
 # set_file_name( "wap_cas_20070320_8m2.lsm" )
 # set_file_name( "wap_cas_20070320_6m1.lsm" )
 
-set_file_name( sys.argv[4] )
+set_file_name( inputImageName )
 
 # v = itk.show(labels, MaxOpacity=0.05)
 itk.write(overlayNuclei, readerNuclei.GetFileName()+"-nuclei.tif") #, True)
@@ -190,7 +215,6 @@ statisticsLabelCollectionNuclei.Update()
 
 caseins = []
 waps = []
-imgDuplicator = itk.ImageDuplicator.IUC3.New()
 
 # to be reused later
 spacing = itk.spacing(readerNuclei)
@@ -215,8 +239,12 @@ for l in ls :
 	nucleusMean = nucleusObject.GetMean()
 	nucleusSigma = nucleusObject.GetSigma()
 	
-	print >> nucleiFile, '"%s"' % sys.argv[1], '"%s"' % readerNuclei.GetFileName(), l, nucleusSize, nucleusElongation, nucleusIdx[0], nucleusIdx[1], nucleusIdx[2], nucleusMean, nucleusSigma
+	print >> nucleiFile, '"%s"' % stimulation, '"%s"' % readerNuclei.GetFileName(), l, nucleusSize, nucleusElongation, nucleusIdx[0], nucleusIdx[1], nucleusIdx[2], nucleusMean, nucleusSigma
 	
+	
+	# put the segmented wap in a new image
+	tempLabelWap = copyImage( maskWap )
+		
 	# get info for wap
 	statsLabelCollectionWap.Update()
 	wapObjects = statsLabelCollectionWap.GetOutput()
@@ -231,13 +259,20 @@ for l in ls :
 		innerSize = shapeLabelCollectionSingleNuclei.GetOutput().GetLabelObject(255).GetPhysicalSize()
 		ci = ( nucleusSize - innerSize ) / nucleusSize
 		  
-		print >> genesFile, '"%s"' % sys.argv[1], '"%s"' % readerNuclei.GetFileName(), l, '"wap"', centerIdx[0], centerIdx[1], centerIdx[2], dist, ci
+		print >> genesFile, '"%s"' % stimulation, '"%s"' % readerNuclei.GetFileName(), l, '"wap"', centerIdx[0], centerIdx[1], centerIdx[2], dist, ci
 		
-		# put the segmented wap in a new image
-		imgDuplicator.SetInputImage( maskWap.GetOutput() )
-		imgDuplicator.Update()
-		waps.append( imgDuplicator.GetOutput() )
-		
+		# write a single pixel in the output image to mark the center of the spot
+		tempLabelWap.SetPixel( centerIdx, 200 )
+	
+	# draw the crosses on the image
+	crossDilate.SetInput( tempLabelWap )
+	# and copy the result to the image list
+	waps.append( copyImage( crossDilate ) )
+	
+	
+	# put the segmented cas in a new image
+	tempLabelCas = copyImage( maskCas )
+	
 	# get info for cas
 	statisticsLabelCollectionCas.Update()
 	casObjects = statisticsLabelCollectionCas.GetOutput()
@@ -252,17 +287,20 @@ for l in ls :
 		innerSize = shapeLabelCollectionSingleNuclei.GetOutput().GetLabelObject(255).GetPhysicalSize()
 		ci = ( nucleusSize - innerSize ) / nucleusSize
 		
-		print >> genesFile, '"%s"' % sys.argv[1], '"%s"' % readerNuclei.GetFileName(), l, '"cas"', centerIdx[0], centerIdx[1], centerIdx[2], dist, ci
+		print >> genesFile, '"%s"' % stimulation, '"%s"' % readerNuclei.GetFileName(), l, '"cas"', centerIdx[0], centerIdx[1], centerIdx[2], dist, ci
 		
-		# put the segmented cas in a new image
-		imgDuplicator.SetInputImage( maskCas.GetOutput() )
-		imgDuplicator.Update()
-		caseins.append( imgDuplicator.GetOutput() )
+		# write a single pixel in the output image to mark the center of the spot
+		tempLabelCas.SetPixel( centerIdx, 200 )
 		
+	# draw the crosses on the image
+	crossDilate.SetInput( tempLabelCas )
+	# and copy the result to the image list
+	caseins.append( copyImage( crossDilate ) )
+	
 
 for i, (cas, wap) in enumerate( zip( caseins, waps ) ):
-	labelCasNuclei.SetInput( i+1, cas)
-	labelWapNuclei.SetInput( i+1, wap)
+	labelCasNuclei.SetInput( i+2, cas)
+	labelWapNuclei.SetInput( i+2, wap)
 	
 itk.write(overlayWap, readerWap.GetFileName()+"-wap.tif") #, True)
 itk.write(overlayCas, readerCas.GetFileName()+"-cas.tif") #, True)

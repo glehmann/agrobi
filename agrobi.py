@@ -3,6 +3,19 @@ import sys, os, itk
 itk.auto_progress()
 itk.auto_not_in_place()
 
+# check the arguments
+if len(sys.argv) != 5:
+	print >> sys.stderr, "Usage:", sys.argv[0], "stimulation nuclei.txt genes.txt image"
+	print >> sys.stderr, '  stimulation: usually "yes" or "no"'
+	print >> sys.stderr, '  nuclei.txt: the file where the nuclei data will be put'
+	print >> sys.stderr, '  genes.txt: the file where the genes data will be put'
+	print >> sys.stderr, '  image: the input image'
+	sys.exit(1)
+
+stimulation = sys.argv[1]
+inputImageName = sys.argv[4]
+
+
 print "Processing", sys.argv[4]
 
 # init the output files, if needed

@@ -117,7 +117,8 @@ labelNuclei = maskWatershedNuclei
 labelCollectionNuclei = itk.LabelImageToLabelCollectionImageFilter.IUC3LI3.New(labelRobustNuclei, UseBackground=True)
 statisticsLabelCollectionNuclei = itk.StatisticsLabelCollectionImageFilter.LI3IUC3.New(labelCollectionNuclei, inputNuclei)
 
-overlayNuclei = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerNuclei, labelRobustNuclei, UseBackground=True)
+subLabelNuclei = itk.SubtractImageFilter.IUC3IUC3IUC3.New(labelNuclei, labelRobustNuclei)
+overlayNuclei = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerNuclei, subLabelNuclei, UseBackground=True)
 
 # select a single nucleus - see the loop at the end
 singleMaskNuclei = itk.BinaryThresholdImageFilter.IUC3IUC3.New(labelNuclei, UpperThreshold=1, LowerThreshold=1)
@@ -159,7 +160,7 @@ maskWap = leavesWap
 connectedWap = itk.ConnectedComponentImageFilter.IUC3IUC3.New(leavesWap, FullyConnected=True)
 labelWap = connectedWap
 
-labelWapNuclei = itk.NaryRelabelImageFilter.IUC3IUC3.New(labelNuclei, labelRobustNuclei)
+labelWapNuclei = itk.NaryRelabelImageFilter.IUC3IUC3.New(subLabelNuclei)
 overlayWap = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerWap, labelWapNuclei, UseBackground=True)
 
 labelCollectionWap = itk.LabelImageToLabelCollectionImageFilter.IUC3LI3.New(labelWap, UseBackground=True)
@@ -182,7 +183,7 @@ maskCas = binarySizeOpeningCas
 connectedCas = itk.ConnectedComponentImageFilter.IUC3IUC3.New(maskCas, FullyConnected=True)
 labelCas = connectedCas
 
-labelCasNuclei = itk.NaryRelabelImageFilter.IUC3IUC3.New(labelNuclei, labelRobustNuclei)
+labelCasNuclei = itk.NaryRelabelImageFilter.IUC3IUC3.New(subLabelNuclei)
 overlayCas = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerCas, labelCasNuclei, UseBackground=True)
 
 labelCollectionCas = itk.LabelImageToLabelCollectionImageFilter.IUC3LI3.New(labelCas, UseBackground=True)
@@ -299,8 +300,8 @@ for l in ls :
 	
 
 for i, (cas, wap) in enumerate( zip( caseins, waps ) ):
-	labelCasNuclei.SetInput( i+2, cas)
-	labelWapNuclei.SetInput( i+2, wap)
+	labelCasNuclei.SetInput( i+1, cas)
+	labelWapNuclei.SetInput( i+1, wap)
 	
 itk.write(overlayWap, readerWap.GetFileName()+"-wap.tif") #, True)
 itk.write(overlayCas, readerCas.GetFileName()+"-cas.tif") #, True)

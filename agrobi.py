@@ -142,21 +142,29 @@ shapeLabelCollectionSingleNuclei = itk.ShapeLabelCollectionImageFilter.LI3.New(l
 
 readerWap = itk.lsm(channel=2)
 # mask the cytoplasm: there is too much noise
-maskNWap = itk.MaskImageFilter.IUC3IUC3IUC3.New(readerWap, singleMaskNuclei)
+maskNWap = itk.MaskImageFilter.IUC3IUC3IUC3.New(readerWap, maskNuclei)
 # again, remove some noise
 medianWap = itk.MedianImageFilter.IUC3IUC3.New(maskNWap)
 gaussianWap = itk.SmoothingRecursiveGaussianImageFilter.IUC3IUC3.New(medianWap, Sigma=0.1)
 inputWap = gaussianWap
+# lets select a single nucleus in the cleaned input image. 2 versions are used:
+# - a first one using the robust nuclei procedure, to detect the spot
+# - a second one using the enlarged mask to extend the spots outside the nucleus if needed
+maskRobustNucleiWap = itk.MaskImageFilter.IUC3IUC3IUC3.New(inputWap, singleMaskRobustNuclei)
+maskNucleiWap = itk.MaskImageFilter.IUC3IUC3IUC3.New(inputWap, singleMaskNuclei)
 # wap images are quite difficult to segment, because their is lot of noise which look like... wap spots.
 # so keep the 4 more visible spots in the image, after have removed the region in the componenents too
 # big to be a spot
-maxtreeWap = itk.ImageToMaximumTreeFilter.IUC3CTUC3D.New(inputWap)
+maxtreeWap = itk.ImageToMaximumTreeFilter.IUC3CTUC3D.New(maskRobustNucleiWap)
 sizeMaxtreeWap = itk.PhysicalSizeComponentTreeFilter.CTUC3D.New(maxtreeWap)
 filteredSizeMaxtreeWap = itk.AttributeFilteringComponentTreeFilter.CTUC3D.New(sizeMaxtreeWap, Lambda=0.8, ReverseOrdering=True, FilteringType="Subtract")
 intensityMaxtreeWap = itk.VolumeLevellingComponentTreeFilter.CTUC3D.New(filteredSizeMaxtreeWap)
 keepMaxtreeWap = itk.KeepNLobesComponentTreeFilter.CTUC3D.New(intensityMaxtreeWap, NumberOfLobes=4)
-leavesWap = itk.ComponentTreeLeavesToBinaryImageFilter.CTUC3DIUC3.New(keepMaxtreeWap)
-maskWap = leavesWap
+# leavesWap = itk.ComponentTreeLeavesToBinaryImageFilter.CTUC3DIUC3.New(keepMaxtreeWap)
+leavesWap = itk.ComponentTreeToImageFilter.CTUC3DIUC3.New(keepMaxtreeWap)
+reconsWap = itk.ReconstructionByDilationImageFilter.IUC3IUC3.New(leavesWap, maskNucleiWap)
+maximaWap = itk.RegionalMaximaImageFilter.IUC3IUC3.New(reconsWap)
+maskWap = maximaWap
 connectedWap = itk.ConnectedComponentImageFilter.IUC3IUC3.New(leavesWap, FullyConnected=True)
 labelWap = connectedWap
 
@@ -171,14 +179,17 @@ statsLabelCollectionWap = itk.StatisticsLabelCollectionImageFilter.LI3IUC3.New(l
 ##########################
 
 readerCas = itk.lsm(channel=0)
-maskNCas = itk.MaskImageFilter.IUC3IUC3IUC3.New(readerCas, singleMaskNuclei)
+maskNCas = itk.MaskImageFilter.IUC3IUC3IUC3.New(readerCas, maskNuclei)
 # again, remove some noise
 medianCas = itk.MedianImageFilter.IUC3IUC3.New(maskNCas)
 gaussianCas = itk.SmoothingRecursiveGaussianImageFilter.IUC3IUC3.New(medianCas, Sigma=0.1)
 inputCas = gaussianCas
-# keep the 4 more visible spots
-thresholdCas = itk.BinaryThresholdImageFilter.IUC3IUC3.New(inputCas, LowerThreshold=59)
-binarySizeOpeningCas = itk.BinaryShapeOpeningImageFilter.IUC3.New(thresholdCas, Attribute="PhysicalSize", Lambda=0.02)
+maskNucleiCas = itk.MaskImageFilter.IUC3IUC3IUC3.New(inputCas, singleMaskNuclei)
+# select the spot with a simple threshold
+thresholdCas = itk.BinaryThresholdImageFilter.IUC3IUC3.New(maskNucleiCas, LowerThreshold=59)
+# keep only the ones at least partially in the nucleus
+reconsCas = itk.BinaryReconstructionByDilationImageFilter.IUC3.New(singleMaskRobustNuclei, thresholdCas)
+binarySizeOpeningCas = itk.BinaryShapeOpeningImageFilter.IUC3.New(reconsCas, Attribute="PhysicalSize", Lambda=0.02)
 maskCas = binarySizeOpeningCas
 connectedCas = itk.ConnectedComponentImageFilter.IUC3IUC3.New(maskCas, FullyConnected=True)
 labelCas = connectedCas

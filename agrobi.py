@@ -157,7 +157,7 @@ maskNucleiWap = itk.MaskImageFilter.IUC3IUC3IUC3.New(inputWap, singleMaskNuclei)
 # big to be a spot
 maxtreeWap = itk.ImageToMaximumTreeFilter.IUC3CTUC3D.New(maskRobustNucleiWap)
 sizeMaxtreeWap = itk.PhysicalSizeComponentTreeFilter.CTUC3D.New(maxtreeWap)
-filteredSizeMaxtreeWap = itk.AttributeFilteringComponentTreeFilter.CTUC3D.New(sizeMaxtreeWap, Lambda=0.8, ReverseOrdering=True, FilteringType="Subtract")
+filteredSizeMaxtreeWap = itk.AttributeFilteringComponentTreeFilter.CTUC3D.New(sizeMaxtreeWap, Lambda=0.7, ReverseOrdering=True, FilteringType="Direct")
 intensityMaxtreeWap = itk.VolumeLevellingComponentTreeFilter.CTUC3D.New(filteredSizeMaxtreeWap)
 keepMaxtreeWap = itk.KeepNLobesComponentTreeFilter.CTUC3D.New(intensityMaxtreeWap, NumberOfLobes=4)
 # leavesWap = itk.ComponentTreeLeavesToBinaryImageFilter.CTUC3DIUC3.New(keepMaxtreeWap)

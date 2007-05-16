@@ -25,12 +25,12 @@ print "Processing", sys.argv[4]
 nucleiFileName = sys.argv[2]
 nucleiFile = file( nucleiFileName,"a" )
 if os.path.getsize( nucleiFileName ) == 0:
-  nucleiFile.write( '"stimulation" "img" "nucleus" "elongation" "size" "x" "y" "z" "mean" "sigma"\n' )
+  nucleiFile.write( '"stimulation" "img" "nucleus" "size" "elongation" "x" "y" "z" "mean" "sigma" "threshold"\n' )
   
 genesFileName = sys.argv[3]
 genesFile = file( genesFileName, "a" )
 if os.path.getsize( genesFileName ) == 0:
-  genesFile.write( '"stimulation" "img" "nucleus" "gene" "x" "y" "z" "dist" "ci"\n' )
+  genesFile.write( '"stimulation" "img" "nucleus" "gene" "x" "y" "z" "px" "py" "pz" "dist" "ci"\n' )
   
 
 # create a cross structuring element - why I haven't implemented that in the FlatStructuringElement class, as well as a Ball()
@@ -239,7 +239,7 @@ for l in ls :
 	nucleusMean = nucleusObject.GetMean()
 	nucleusSigma = nucleusObject.GetSigma()
 	
-	print >> nucleiFile, '"%s"' % stimulation, '"%s"' % readerNuclei.GetFileName(), l, nucleusSize, nucleusElongation, nucleusIdx[0], nucleusIdx[1], nucleusIdx[2], nucleusMean, nucleusSigma
+	print >> nucleiFile, '"%s"' % stimulation, '"%s"' % readerNuclei.GetFileName(), l, nucleusElongation, nucleusSize, nucleusIdx[0], nucleusIdx[1], nucleusIdx[2], nucleusMean, nucleusSigma, robustNuclei.GetThreshold()
 	
 	
 	# put the segmented wap in a new image
@@ -259,7 +259,7 @@ for l in ls :
 		innerSize = shapeLabelCollectionSingleNuclei.GetOutput().GetLabelObject(255).GetPhysicalSize()
 		ci = ( nucleusSize - innerSize ) / nucleusSize
 		  
-		print >> genesFile, '"%s"' % stimulation, '"%s"' % readerNuclei.GetFileName(), l, '"wap"', centerIdx[0], centerIdx[1], centerIdx[2], dist, ci
+		print >> genesFile, '"%s"' % stimulation, '"%s"' % readerNuclei.GetFileName(), l, '"wap"', centerIdx[0], centerIdx[1], centerIdx[2], cog[0], cog[1], cog[2], dist, ci
 		
 		# write a single pixel in the output image to mark the center of the spot
 		tempLabelWap.SetPixel( centerIdx, 200 )
@@ -287,7 +287,7 @@ for l in ls :
 		innerSize = shapeLabelCollectionSingleNuclei.GetOutput().GetLabelObject(255).GetPhysicalSize()
 		ci = ( nucleusSize - innerSize ) / nucleusSize
 		
-		print >> genesFile, '"%s"' % stimulation, '"%s"' % readerNuclei.GetFileName(), l, '"cas"', centerIdx[0], centerIdx[1], centerIdx[2], dist, ci
+		print >> genesFile, '"%s"' % stimulation, '"%s"' % readerNuclei.GetFileName(), l, '"cas"', centerIdx[0], centerIdx[1], centerIdx[2], cog[0], cog[1], cog[2], dist, ci
 		
 		# write a single pixel in the output image to mark the center of the spot
 		tempLabelCas.SetPixel( centerIdx, 200 )

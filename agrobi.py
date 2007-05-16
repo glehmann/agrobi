@@ -3,6 +3,9 @@ import sys, os, itk
 itk.auto_progress()
 itk.auto_not_in_place()
 
+# to be used with hyper threading procs only!
+itk.MultiThreader.SetGlobalDefaultNumberOfThreads(1)
+
 # check the arguments
 if len(sys.argv) != 5:
 	print >> sys.stderr, "Usage:", sys.argv[0], "stimulation nuclei.txt genes.txt image"

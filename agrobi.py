@@ -127,13 +127,11 @@ singleMaskRobustNuclei = itk.BinaryThresholdImageFilter.IUC3IUC3.New(labelRobust
 # -- the mask is inverted to avoid the 0 distance pixels on the border of the object. We prefer to have them outside of the object.
 invertedSingleMaskRobustNuclei = itk.InvertIntensityImageFilter.IUC3IUC3.New(singleMaskRobustNuclei)
 maurerSingleNuclei = itk.SignedMaurerDistanceMapImageFilter.IUC3IF3.New(invertedSingleMaskRobustNuclei, UseImageSpacing=True, SquaredDistance=False) #, InsideIsPositive=True)
+ciSingleRobustNuclei = itk.CentralIndexMapImageFilter.IF3IF3.New(maurerSingleNuclei)
 # use an interpolator to get the distance at the exact center of gravity position
 maurerInterpolator = itk.LinearInterpolateImageFunction.IF3D.New(maurerSingleNuclei)
-# the thresholded distance map, to compute the CI
-thresholdMaurerSingleNuclei = itk.BinaryThresholdImageFilter.IF3IUC3.New(maurerSingleNuclei)
-labelCollectionSingleNuclei = itk.LabelImageToLabelCollectionImageFilter.IUC3LI3.New(thresholdMaurerSingleNuclei, UseBackground=True)
-shapeLabelCollectionSingleNuclei = itk.ShapeLabelCollectionImageFilter.LI3.New(labelCollectionSingleNuclei)
-
+# and another one for the CI
+ciInterpolator = itk.LinearInterpolateImageFunction.IF3D.New(ciSingleRobustNuclei)
 
 
 ##########################
@@ -242,7 +240,7 @@ for l in ls :
 	singleMaskRobustNuclei.SetLowerThreshold( l )
 	
 	# update the distance map
-	maurerSingleNuclei.Update()
+	ciSingleRobustNuclei.Update()
 	
 	nucleusObject = statisticsLabelCollectionNuclei.GetOutput().GetLabelObject(l)
 	nucleusSize = nucleusObject.GetPhysicalSize()
@@ -265,11 +263,7 @@ for l in ls :
 		centerContinuousIdx = [v/s for v, s in zip(cog, spacing)]
 		centerIdx = [int(round(v)) for v in centerContinuousIdx]
 		dist = maurerInterpolator.EvaluateAtContinuousIndex( centerContinuousIdx )
-		
-		thresholdMaurerSingleNuclei.SetLowerThreshold( dist )
-		shapeLabelCollectionSingleNuclei.Update()
-		innerSize = shapeLabelCollectionSingleNuclei.GetOutput().GetLabelObject(255).GetPhysicalSize()
-		ci = ( nucleusSize - innerSize ) / nucleusSize
+		ci = ciInterpolator.EvaluateAtContinuousIndex( centerContinuousIdx )
 		  
 		print >> genesFile, '"%s"' % stimulation, '"%s"' % readerNuclei.GetFileName(), l, '"wap"', centerIdx[0], centerIdx[1], centerIdx[2], cog[0], cog[1], cog[2], dist, ci
 		
@@ -293,11 +287,7 @@ for l in ls :
 		centerContinuousIdx = [v/s for v, s in zip(cog, spacing)]
 		centerIdx = [int(round(v)) for v in centerContinuousIdx]
 		dist = maurerInterpolator.EvaluateAtContinuousIndex( centerContinuousIdx )
-		
-		thresholdMaurerSingleNuclei.SetLowerThreshold( dist )
-		shapeLabelCollectionSingleNuclei.Update()
-		innerSize = shapeLabelCollectionSingleNuclei.GetOutput().GetLabelObject(255).GetPhysicalSize()
-		ci = ( nucleusSize - innerSize ) / nucleusSize
+		ci = ciInterpolator.EvaluateAtContinuousIndex( centerContinuousIdx )
 		
 		print >> genesFile, '"%s"' % stimulation, '"%s"' % readerNuclei.GetFileName(), l, '"cas"', centerIdx[0], centerIdx[1], centerIdx[2], cog[0], cog[1], cog[2], dist, ci
 		

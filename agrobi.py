@@ -96,7 +96,7 @@ labelSizeOnBorderOpeningRobustNuclei = itk.LabelShapeOpeningImageFilter.IUC3.New
 labelRobustNuclei = labelSizeOnBorderOpeningRobustNuclei
 
 # dilate the mask so it can be used to search the spots a little outside the nuclei
-thresholdNuclei = itk.BinaryThresholdImageFilter.IF3IUC3.New(maurerRobustNuclei, UpperThreshold=0.1)
+thresholdNuclei = itk.BinaryThresholdImageFilter.IF3IUC3.New(maurerRobustNuclei, UpperThreshold=0.3)
 maskNuclei = thresholdNuclei
 # split and labelize the nuclei
 maurerNuclei = itk.SignedMaurerDistanceMapImageFilter.IUC3IF3.New(maskNuclei, UseImageSpacing=True)

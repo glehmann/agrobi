@@ -34,14 +34,14 @@ if opts.nuclei == "-":
 else:
 	nucleiFile = file( opts.nuclei, "a" )
 	if os.path.getsize( opts.nuclei ) == 0:
-		nucleiFile.write( '"stimulation" "img" "nucleus" "size" "elongation" "x" "y" "z" "mean" "sigma" "threshold"\n' )
+		nucleiFile.write( '"stimulation" "img" "nucleus" "size" "elongation" "x" "y" "z" "mean" "sigma" "threshold" "otsu"\n' )
 
 if opts.genes == "-":
 	genesFile = sys.stdout
 else:
 	genesFile = file( opts.genes, "a" )
 	if os.path.getsize( opts.genes ) == 0:
-		genesFile.write( '"stimulation" "img" "nucleus" "gene" "x" "y" "z" "px" "py" "pz" "dist" "ci"\n' )
+		genesFile.write( '"stimulation" "img" "nucleus" "gene" "x" "y" "z" "px" "py" "pz" "dist" "ci" "mean" "max" "median"\n' )
 
 
 
@@ -60,6 +60,9 @@ fillHolesNuclei = itk.SliceBySliceImageFilter.IUC3IUC3.New(readerNuclei, Filter=
 medianNuclei = itk.MedianImageFilter.IUC3IUC3.New(readerNuclei)
 gaussianNuclei = itk.SmoothingRecursiveGaussianImageFilter.IUC3IUC3.New(medianNuclei, Sigma=0.2)
 inputNuclei = gaussianNuclei
+
+# to compare with different threasholding methods
+otsuNuclei = itk.OtsuThresholdImageCalculator.IUC3.New(gaussianNuclei)
 
 # now we have 2 things: a large shape used to find the spots, and a smaller one used to precisely find the
 # border of the nucleus.
@@ -247,6 +250,7 @@ if opts.visualValidation:
 # let start, really
 statisticsLabelCollectionRobustNuclei.Update()
 shapeLabelCollectionNuclei.Update()
+otsuNuclei.Compute()
 
 # to be reused later
 spacing = itk.spacing(readerNuclei)
@@ -271,7 +275,7 @@ for l in ls :
 	nucleusMean = nucleusObject.GetMean()
 	nucleusSigma = nucleusObject.GetSigma()
 	
-	print >> nucleiFile, '"%s"' % opts.stimulation, '"%s"' % readerNuclei.GetFileName(), l, nucleusElongation, nucleusSize, nucleusIdx[0], nucleusIdx[1], nucleusIdx[2], nucleusMean, nucleusSigma, robustNuclei.GetThreshold()
+	print >> nucleiFile, '"%s"' % opts.stimulation, '"%s"' % readerNuclei.GetFileName(), l, nucleusElongation, nucleusSize, nucleusIdx[0], nucleusIdx[1], nucleusIdx[2], nucleusMean, nucleusSigma, robustNuclei.GetThreshold(), otsuNuclei.GetThreshold()
 	
 # 	roi = shapeLabelCollectionNuclei.GetOutput().GetLabelObject(l).GetRegion()
 # 	roiNucleus.SetRegionOfInterest( roi )
@@ -289,13 +293,14 @@ for l in ls :
 	statsLabelCollectionWap.UpdateLargestPossibleRegion()
 	wapObjects = statsLabelCollectionWap.GetOutput()
 	for wl in range(1, wapObjects.GetNumberOfObjects()+1) :
-		cog = wapObjects.GetLabelObject(wl).GetCenterOfGravity()
+		labelObject = wapObjects.GetLabelObject(wl)
+		cog = labelObject.GetCenterOfGravity()
 		centerContinuousIdx = [v/s for v, s in zip(cog, spacing)]
 		centerIdx = [int(round(v)) for v in centerContinuousIdx]
 		dist = maurerInterpolator.EvaluateAtContinuousIndex( centerContinuousIdx )
 		ci = ciInterpolator.EvaluateAtContinuousIndex( centerContinuousIdx )
 		  
-		print >> genesFile, '"%s"' % opts.stimulation, '"%s"' % readerNuclei.GetFileName(), l, '"wap"', centerIdx[0], centerIdx[1], centerIdx[2], cog[0], cog[1], cog[2], dist, ci
+		print >> genesFile, '"%s"' % opts.stimulation, '"%s"' % readerNuclei.GetFileName(), l, '"wap"', centerIdx[0], centerIdx[1], centerIdx[2], cog[0], cog[1], cog[2], dist, ci, labelObject.GetMean(), labelObject.GetMaximum(), labelObject.GetMedian()
 		
 		if opts.visualValidation:
 			# write a single pixel in the output image to mark the center of the spot
@@ -305,13 +310,14 @@ for l in ls :
 	statisticsLabelCollectionCas.Update()
 	casObjects = statisticsLabelCollectionCas.GetOutput()
 	for wl in range(1, casObjects.GetNumberOfObjects()+1) :
-		cog = casObjects.GetLabelObject(wl).GetCenterOfGravity()
+		labelObject = casObjects.GetLabelObject(wl)
+		cog = labelObject.GetCenterOfGravity()
 		centerContinuousIdx = [v/s for v, s in zip(cog, spacing)]
 		centerIdx = [int(round(v)) for v in centerContinuousIdx]
 		dist = maurerInterpolator.EvaluateAtContinuousIndex( centerContinuousIdx )
 		ci = ciInterpolator.EvaluateAtContinuousIndex( centerContinuousIdx )
 		
-		print >> genesFile, '"%s"' % opts.stimulation, '"%s"' % readerNuclei.GetFileName(), l, '"cas"', centerIdx[0], centerIdx[1], centerIdx[2], cog[0], cog[1], cog[2], dist, ci
+		print >> genesFile, '"%s"' % opts.stimulation, '"%s"' % readerNuclei.GetFileName(), l, '"cas"', centerIdx[0], centerIdx[1], centerIdx[2], cog[0], cog[1], cog[2], dist, ci, labelObject.GetMean(), labelObject.GetMaximum(), labelObject.GetMedian()
 		
 		if opts.visualValidation:
 			# write a single pixel in the output image to mark the center of the spot

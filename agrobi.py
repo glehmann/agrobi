@@ -161,7 +161,7 @@ maskWap = maximaWap
 
 labelCollectionWap = itk.BinaryImageToLabelCollectionImageFilter.IUC3LI3.New(maskWap)
 statsLabelCollectionWap = itk.StatisticsLabelCollectionImageFilter.LI3IUC3.New(labelCollectionWap, inputWap, InPlace=False)
-statisticsNucleiLabelCollectionWap = itk.StatisticsLabelCollectionImageFilter.LI3IUC3.New(labelCollectionWap, inputNuclei)
+statisticsNucleiLabelCollectionWap = itk.StatisticsLabelCollectionImageFilter.LI3IUC3.New(labelCollectionWap, readerNuclei)
 
 
 ##########################
@@ -189,7 +189,7 @@ maskCas = binarySizeOpeningCas
 
 labelCollectionCas = itk.BinaryImageToLabelCollectionImageFilter.IUC3LI3.New(maskCas)
 statisticsLabelCollectionCas = itk.StatisticsLabelCollectionImageFilter.LI3IUC3.New(labelCollectionCas, inputCas, InPlace=False)
-statisticsNucleiLabelCollectionCas = itk.StatisticsLabelCollectionImageFilter.LI3IUC3.New(labelCollectionCas, inputNuclei)
+statisticsNucleiLabelCollectionCas = itk.StatisticsLabelCollectionImageFilter.LI3IUC3.New(labelCollectionCas, readerNuclei)
 
 
 ##########################

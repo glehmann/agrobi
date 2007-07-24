@@ -6,7 +6,7 @@ parser = OptionParser(usage = '''"Usage: agrobi.py image"
   image: the input image''')
 
 parser.add_option("-v", "--verbose", action="store_true", dest="verbose", help="display infos about progress")
-parser.add_option("-V", "--visual-validation", action="store_true", dest="visualValidation", help="write 3 images with the segmeted zones overlayed on top of the input channels")
+parser.add_option("-V", "--visual-validation", action="store_true", dest="visualValidation", help="write 3 images with the segmented zones overlayed on top of the input channels")
 parser.add_option("-t", "--threads", type="int", dest="threads", default=0, help="number of threads to use. Defaults to the number of procs")
 parser.add_option("-s", "--stimulation", dest="stimulation", default="?", help="the stimulation text in the output")
 parser.add_option("-n", "--nuclei", dest="nuclei", default="/dev/null", help="the output file for the nuclei data. Defaults to /dev/null")
@@ -61,7 +61,7 @@ medianNuclei = itk.MedianImageFilter.IUC3IUC3.New(readerNuclei)
 gaussianNuclei = itk.SmoothingRecursiveGaussianImageFilter.IUC3IUC3.New(medianNuclei, Sigma=0.2)
 inputNuclei = gaussianNuclei
 
-# to compare with different threasholding methods
+# to compare with different thresholding methods
 otsuNuclei = itk.OtsuThresholdImageCalculator.IUC3.New(gaussianNuclei)
 
 # now we have 2 things: a large shape used to find the spots, and a smaller one used to precisely find the

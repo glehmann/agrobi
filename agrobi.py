@@ -173,7 +173,12 @@ maskNCas = itk.MaskImageFilter.IUC3IUC3IUC3.New(readerCas, maskNuclei)
 # again, remove some noise
 medianCas = itk.MedianImageFilter.IUC3IUC3.New(maskNCas)
 gaussianCas = itk.SmoothingRecursiveGaussianImageFilter.IUC3IUC3.New(medianCas, Sigma=0.1)
-inputCas = gaussianCas
+# remove the bigger objects in the background with a white tophat by attribute
+# Will do nearly nothing in most of the images, but will drop the nucleus image in some of
+# them, for a small cost
+sizeOpeningCas = itk.PhysicalSizeOpeningImageFilter.IUC3IUC3.New(gaussianCas, Lambda=2.0)
+subtractCas = itk.SubtractImageFilter.IUC3IUC3IUC3.New(gaussianCas, sizeOpeningCas)
+inputCas = subtractCas
 maskNucleiCas = itk.MaskImageFilter.IUC3IUC3IUC3.New(inputCas, singleMaskNuclei)
 # select the spot with a simple threshold
 thresholdCas = itk.BinaryThresholdImageFilter.IUC3IUC3.New(maskNucleiCas, LowerThreshold=59)

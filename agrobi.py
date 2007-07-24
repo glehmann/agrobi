@@ -42,7 +42,7 @@ if opts.genes == "-":
 else:
 	genesFile = file( opts.genes, "a" )
 	if os.path.getsize( opts.genes ) == 0:
-		genesFile.write( '"stimulation" "img" "nucleus" "gene" "x" "y" "z" "px" "py" "pz" "dist" "ci" "mean" "max" "median"\n' )
+		genesFile.write( '"stimulation" "img" "nucleus" "gene" "x" "y" "z" "px" "py" "pz" "dist" "ci" "mean" "max" "median" "nMean" "nMinimum" "nMaximum" "nMedian" "nSigma" "nKurtosis" "nSkewness"\n' )
 
 
 
@@ -160,7 +160,8 @@ maximaWap = itk.RegionalMaximaImageFilter.IUC3IUC3.New(reconsWap)
 maskWap = maximaWap
 
 labelCollectionWap = itk.BinaryImageToLabelCollectionImageFilter.IUC3LI3.New(maskWap)
-statsLabelCollectionWap = itk.StatisticsLabelCollectionImageFilter.LI3IUC3.New(labelCollectionWap, inputWap)
+statsLabelCollectionWap = itk.StatisticsLabelCollectionImageFilter.LI3IUC3.New(labelCollectionWap, inputWap, InPlace=False)
+statisticsNucleiLabelCollectionWap = itk.StatisticsLabelCollectionImageFilter.LI3IUC3.New(labelCollectionWap, inputNuclei)
 
 
 ##########################
@@ -182,7 +183,8 @@ binarySizeOpeningCas = itk.BinaryShapeOpeningImageFilter.IUC3.New(reconsCas, Att
 maskCas = binarySizeOpeningCas
 
 labelCollectionCas = itk.BinaryImageToLabelCollectionImageFilter.IUC3LI3.New(maskCas)
-statisticsLabelCollectionCas = itk.StatisticsLabelCollectionImageFilter.LI3IUC3.New(labelCollectionCas, inputCas)
+statisticsLabelCollectionCas = itk.StatisticsLabelCollectionImageFilter.LI3IUC3.New(labelCollectionCas, inputCas, InPlace=False)
+statisticsNucleiLabelCollectionCas = itk.StatisticsLabelCollectionImageFilter.LI3IUC3.New(labelCollectionCas, inputNuclei)
 
 
 ##########################
@@ -295,6 +297,7 @@ for l in ls :
 		
 	# get info for wap
 	statsLabelCollectionWap.UpdateLargestPossibleRegion()
+	statisticsNucleiLabelCollectionWap.UpdateLargestPossibleRegion()
 	wapObjects = statsLabelCollectionWap.GetOutput()
 	for wl in range(1, wapObjects.GetNumberOfObjects()+1) :
 		labelObject = wapObjects.GetLabelObject(wl)
@@ -304,7 +307,9 @@ for l in ls :
 		dist = maurerInterpolator.EvaluateAtContinuousIndex( centerContinuousIdx )
 		ci = ciInterpolator.EvaluateAtContinuousIndex( centerContinuousIdx )
 		  
-		print >> genesFile, '"%s"' % opts.stimulation, '"%s"' % readerNuclei.GetFileName(), l, '"wap"', centerIdx[0], centerIdx[1], centerIdx[2], cog[0], cog[1], cog[2], dist, ci, labelObject.GetMean(), labelObject.GetMaximum(), labelObject.GetMedian()
+		labelObjectNuclei = statisticsNucleiLabelCollectionWap.GetOutput().GetLabelObject(wl)
+		
+		print >> genesFile, '"%s"' % opts.stimulation, '"%s"' % readerNuclei.GetFileName(), l, '"wap"', centerIdx[0], centerIdx[1], centerIdx[2], cog[0], cog[1], cog[2], dist, ci, labelObject.GetMean(), labelObject.GetMaximum(), labelObject.GetMedian(), labelObjectNuclei.GetMean(), labelObjectNuclei.GetMinimum(), labelObjectNuclei.GetMaximum(), labelObjectNuclei.GetMedian(), labelObjectNuclei.GetSigma(), labelObjectNuclei.GetKurtosis(), labelObjectNuclei.GetSkewness()
 		
 		if opts.visualValidation:
 			# write a single pixel in the output image to mark the center of the spot
@@ -312,6 +317,7 @@ for l in ls :
 	
 	# get info for cas
 	statisticsLabelCollectionCas.Update()
+	statisticsNucleiLabelCollectionCas.UpdateLargestPossibleRegion()
 	casObjects = statisticsLabelCollectionCas.GetOutput()
 	for wl in range(1, casObjects.GetNumberOfObjects()+1) :
 		labelObject = casObjects.GetLabelObject(wl)
@@ -321,7 +327,9 @@ for l in ls :
 		dist = maurerInterpolator.EvaluateAtContinuousIndex( centerContinuousIdx )
 		ci = ciInterpolator.EvaluateAtContinuousIndex( centerContinuousIdx )
 		
-		print >> genesFile, '"%s"' % opts.stimulation, '"%s"' % readerNuclei.GetFileName(), l, '"cas"', centerIdx[0], centerIdx[1], centerIdx[2], cog[0], cog[1], cog[2], dist, ci, labelObject.GetMean(), labelObject.GetMaximum(), labelObject.GetMedian()
+		labelObjectNuclei = statisticsNucleiLabelCollectionCas.GetOutput().GetLabelObject(wl)
+		
+		print >> genesFile, '"%s"' % opts.stimulation, '"%s"' % readerNuclei.GetFileName(), l, '"cas"', centerIdx[0], centerIdx[1], centerIdx[2], cog[0], cog[1], cog[2], dist, ci, labelObject.GetMean(), labelObject.GetMaximum(), labelObject.GetMedian(), labelObjectNuclei.GetMean(), labelObjectNuclei.GetMinimum(), labelObjectNuclei.GetMaximum(), labelObjectNuclei.GetMedian(), labelObjectNuclei.GetSigma(), labelObjectNuclei.GetKurtosis(), labelObjectNuclei.GetSkewness()
 		
 		if opts.visualValidation:
 			# write a single pixel in the output image to mark the center of the spot

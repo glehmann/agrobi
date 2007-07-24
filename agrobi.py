@@ -11,6 +11,7 @@ parser.add_option("-t", "--threads", type="int", dest="threads", default=0, help
 parser.add_option("-s", "--stimulation", dest="stimulation", default="?", help="the stimulation text in the output")
 parser.add_option("-n", "--nuclei", dest="nuclei", default="/dev/null", help="the output file for the nuclei data. Defaults to /dev/null")
 parser.add_option("-g", "--genes", dest="genes", default="-", help="the output file for the genes data. Defaults to standard output")
+parser.add_option("-S", "--save-segmentation", action="store_true", dest="saveSegmentation", help="write the segmentation results, so they can be reused later")
 
 opts, args = parser.parse_args()
 
@@ -251,6 +252,9 @@ if opts.visualValidation:
 statisticsLabelCollectionRobustNuclei.Update()
 shapeLabelCollectionNuclei.Update()
 otsuNuclei.Compute()
+
+if opts.saveSegmentation:
+	itk.write( labelRobustNuclei, readerNuclei.GetFileName()+"-nuclei-segmentation.nrrd", True)
 
 # to be reused later
 spacing = itk.spacing(readerNuclei)

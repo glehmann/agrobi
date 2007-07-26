@@ -1,0 +1,6 @@
+cells_no-est/ip_cas-fitc_wap-cy5/20070320.mdb/wap_cas_20070320_5m2.lsm
+cells_no-est/ip_cas-fitc_wap-cy5/20070320.mdb/wap_cas_20070320_10m2.lsm
+cells_no-est/ip_cas-fitc_wap-cy5/20070320.mdb/wap_cas_20070320_1m1.lsm
+cells_no-est/ip_cas-fitc_wap-cy5/20070320.mdb/wap_cas_20070320_1m2.lsm
+cells_no-est/ip_cas-fitc_wap-cy5/20070320.mdb/wap_cas_20070320_1.lsm
+cells_est/ip_cas-fitc_wap-cy5.mdb/20070410_03.lsm

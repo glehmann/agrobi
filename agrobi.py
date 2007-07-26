@@ -72,7 +72,7 @@ otsuNuclei = itk.OtsuThresholdImageCalculator.IUC3.New(gaussianNuclei)
 gradientNuclei = itk.GradientMagnitudeRecursiveGaussianImageFilter.IUC3IUC3.New(inputNuclei, Sigma=0.36)
 robustNuclei = itk.RobustAutomaticThresholdImageFilter.IUC3IUC3IUC3.New(inputNuclei, gradientNuclei)
 # remove the objects too small to be a nucleus
-binarySizeOpeningRobustNuclei = itk.BinaryShapeOpeningImageFilter.IUC3.New(robustNuclei, Lambda=100000)
+binarySizeOpeningRobustNuclei = itk.BinaryShapeOpeningImageFilter.IUC3.New(robustNuclei, Attribute="PhysicalSize", Lambda=150)
 fillHolesRobustNuclei = itk.SliceBySliceImageFilter.IUC3IUC3.New(binarySizeOpeningRobustNuclei, Filter=fillHoles2D.GetPointer())
 # we have the mask of our nuclei
 maskRobustNuclei = fillHolesRobustNuclei
@@ -80,8 +80,10 @@ maskRobustNuclei = fillHolesRobustNuclei
 maurerRobustNuclei = itk.SignedMaurerDistanceMapImageFilter.IUC3IF3.New(maskRobustNuclei, UseImageSpacing=True)
 watershedRobustNuclei = itk.MorphologicalWatershedImageFilter.IF3IUC3.New(maurerRobustNuclei, Level=1.5, MarkWatershedLine=False) #, FullyConnected=True)
 maskWatershedRobustNuclei = itk.MaskImageFilter.IUC3IUC3IUC3.New(watershedRobustNuclei, maskRobustNuclei)
+# remove (again) the objects too small to be a nucleus
+labelSizeOpeningRobustNuclei = itk.LabelShapeOpeningImageFilter.IUC3.New(maskWatershedRobustNuclei, Attribute="PhysicalSize", Lambda=150)
 # remove the nucleus on the border - note that they can touch "a little" the border
-labelSizeOnBorderOpeningRobustNuclei = itk.LabelShapeOpeningImageFilter.IUC3.New(maskWatershedRobustNuclei, Attribute="SizeOnBorder", Lambda=1500, ReverseOrdering=True)
+labelSizeOnBorderOpeningRobustNuclei = itk.LabelShapeOpeningImageFilter.IUC3.New(labelSizeOpeningRobustNuclei, Attribute="SizeOnBorder", Lambda=1500, ReverseOrdering=True)
 # # relabel the objects so we are sure to get consecutive labels after the opening
 # relabelRobustNuclei = itk.ShapeRelabelImageFilter.IUC3.New(labelSizeOnBorderOpeningRobustNuclei)
 # labelRobustNuclei = relabelNRobustuclei

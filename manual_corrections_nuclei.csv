@@ -1,0 +1,14 @@
+"stimulation" "img" "nucleus" "x" "y" "z" "exclude"
+"no" "cells_no-est/ip_cas-fitc_wap-cy5/20070604.mdb/20070604_34.lsm" 3 387 163 37 1
+"no" "cells_no-est/ip_cas-fitc_wap-cy5/20070604.mdb/20070604_36.lsm" 1 120 194 35 1
+"no" "cells_no-est/ip_cas-fitc_wap-cy5/20070604.mdb/20070604_38.lsm" 2 396 164 12 1
+"yes" "cells_est/ip_cas-fitc_wap-cy5.mdb/20070410_20.lsm" 1 222 202 19 1
+"yes" "cells_est/ip_cas-fitc_wap-cy5.mdb/20070410_24.lsm" 2 274 113 19 1
+"yes" "cells_est/ip_cas-fitc_wap-cy5.mdb/20070411_42.lsm" 1 109 275 21 1
+"yes" "cells_est/ip_cas-fitc_wap-cy5.mdb/20070626_46.lsm" 1 145 97 24 1
+"yes" "cells_est/ip_cas-fitc_wap-cy5.mdb/20070410_03.lsm" 2 143 195 30 1
+"no" "cells_no-est/ip_cas-fitc_wap-cy5/20070320.mdb/wap_cas_20070320_1.lsm" 1 268 255 17 1
+"no" "cells_no-est/ip_cas-fitc_wap-cy5/20070320.mdb/wap_cas_20070320_1m2.lsm" 1 296 251 13 1
+"no" "cells_no-est/ip_cas-fitc_wap-cy5/20070320.mdb/wap_cas_20070320_1m1.lsm" 1 290 254 14 1
+"no" "cells_no-est/ip_cas-fitc_wap-cy5/20070320.mdb/wap_cas_20070320_10m2.lsm" 1 267 230 27 1
+"no" "cells_no-est/ip_cas-fitc_wap-cy5/20070320.mdb/wap_cas_20070320_5m2.lsm" 1 272 246 24 1

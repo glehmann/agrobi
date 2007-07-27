@@ -40,7 +40,7 @@ singleMaskRobustNuclei = itk.BinaryThresholdImageFilter.IUC3IUC3.New(labelRobust
 # invertedSingleMaskRobustNuclei = itk.InvertIntensityImageFilter.IUC3IUC3.New(roiNucleus)
 invertedSingleMaskRobustNuclei = itk.InvertIntensityImageFilter.IUC3IUC3.New(singleMaskRobustNuclei)
 maurerSingleNuclei = itk.SignedMaurerDistanceMapImageFilter.IUC3IF3.New(invertedSingleMaskRobustNuclei, UseImageSpacing=True, SquaredDistance=False) #, InsideIsPositive=True)
-ciSingleRobustNuclei = itk.CentralIndexMapImageFilter.IF3IF3.New(maurerSingleNuclei)
+ciSingleRobustNuclei = itk.ErodedVolumeFractionMapImageFilter.IF3IF3.New(maurerSingleNuclei)
 
 
 # print the header

@@ -1,11 +1,11 @@
-#ifndef __itkCentralIndexMapImageFilter_h
-#define __itkCentralIndexMapImageFilter_h
+#ifndef __itkErodedVolumeFractionMapImageFilter_h
+#define __itkErodedVolumeFractionMapImageFilter_h
 
 #include "itkImageToImageFilter.h"
 
 namespace itk {
 
-/** \class CentralIndexMapImageFilter
+/** \class ErodedVolumeFractionMapImageFilter
  * \brief Compute the central index from a distance map
  *
  * 
@@ -16,12 +16,12 @@ namespace itk {
  * \ingroup ImageEnhancement  MathematicalMorphologyImageFilters
  */
 template<class TInputImage, class TOutputImage>
-class ITK_EXPORT CentralIndexMapImageFilter : 
+class ITK_EXPORT ErodedVolumeFractionMapImageFilter : 
     public ImageToImageFilter<TInputImage, TOutputImage>
 {
 public:
   /** Standard class typedefs. */
-  typedef CentralIndexMapImageFilter Self;
+  typedef ErodedVolumeFractionMapImageFilter Self;
   typedef ImageToImageFilter<TInputImage, TOutputImage>
   Superclass;
   typedef SmartPointer<Self>        Pointer;
@@ -51,16 +51,16 @@ public:
   itkNewMacro(Self);  
 
   /** Runtime information support. */
-  itkTypeMacro(CentralIndexMapImageFilter, 
+  itkTypeMacro(ErodedVolumeFractionMapImageFilter, 
                ImageToImageFilter);
   
 
 protected:
-  CentralIndexMapImageFilter();
-  ~CentralIndexMapImageFilter() {};
+  ErodedVolumeFractionMapImageFilter();
+  ~ErodedVolumeFractionMapImageFilter() {};
   void PrintSelf(std::ostream& os, Indent indent) const;
 
-  /** CentralIndexMapImageFilter needs to request enough of the
+  /** ErodedVolumeFractionMapImageFilter needs to request enough of the
    * marker image to account for the elementary structuring element.
    * The mask image does not need to be padded. Depending on whether
    * the filter is configured to run a single iteration or until
@@ -83,7 +83,7 @@ protected:
   void GenerateData();
   
 private:
-  CentralIndexMapImageFilter(const Self&); //purposely not implemented
+  ErodedVolumeFractionMapImageFilter(const Self&); //purposely not implemented
   void operator=(const Self&); //purposely not implemented
 
 } ; // end of class
@@ -91,7 +91,7 @@ private:
 } // end namespace itk
   
 #ifndef ITK_MANUAL_INSTANTIATION
-#include "itkCentralIndexMapImageFilter.txx"
+#include "itkErodedVolumeFractionMapImageFilter.txx"
 #endif
 
 #endif

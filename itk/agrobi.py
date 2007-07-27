@@ -122,7 +122,7 @@ singleMaskRobustNuclei = itk.BinaryThresholdImageFilter.IUC3IUC3.New(labelRobust
 # invertedSingleMaskRobustNuclei = itk.InvertIntensityImageFilter.IUC3IUC3.New(roiNucleus)
 invertedSingleMaskRobustNuclei = itk.InvertIntensityImageFilter.IUC3IUC3.New(singleMaskRobustNuclei)
 maurerSingleNuclei = itk.SignedMaurerDistanceMapImageFilter.IUC3IF3.New(invertedSingleMaskRobustNuclei, UseImageSpacing=True, SquaredDistance=False) #, InsideIsPositive=True)
-ciSingleRobustNuclei = itk.CentralIndexMapImageFilter.IF3IF3.New(maurerSingleNuclei)
+ciSingleRobustNuclei = itk.ErodedVolumeFractionMapImageFilter.IF3IF3.New(maurerSingleNuclei)
 # use an interpolator to get the distance at the exact center of gravity position
 maurerInterpolator = itk.LinearInterpolateImageFunction.IF3D.New(maurerSingleNuclei)
 # and another one for the CI

@@ -1,7 +1,7 @@
 /*=========================================================================
 
   Program:   Insight Segmentation & Registration Toolkit
-  Module:    $RCSfile: itkCentralIndexMapImageFilter.txx,v $
+  Module:    $RCSfile: itkErodedVolumeFractionMapImageFilter.txx,v $
   Language:  C++
   Date:      $Date: 2004/12/21 22:47:30 $
   Version:   $Revision: 1.12 $
@@ -14,10 +14,10 @@
     PURPOSE.  See the above copyright notices for more information.
 
 =========================================================================*/
-#ifndef __itkCentralIndexMapImageFilter_txx
-#define __itkCentralIndexMapImageFilter_txx
+#ifndef __itkErodedVolumeFractionMapImageFilter_txx
+#define __itkErodedVolumeFractionMapImageFilter_txx
 
-#include "itkCentralIndexMapImageFilter.h"
+#include "itkErodedVolumeFractionMapImageFilter.h"
 #include "itkProgressReporter.h"
 #include "itkImageRegionConstIterator.h"
 #include "itkImageRegionIterator.h"
@@ -25,15 +25,15 @@
 namespace itk {
 
 template <class TInputImage, class TOutputImage>
-CentralIndexMapImageFilter<TInputImage, TOutputImage>
-::CentralIndexMapImageFilter()
+ErodedVolumeFractionMapImageFilter<TInputImage, TOutputImage>
+::ErodedVolumeFractionMapImageFilter()
 {
 }
 
 
 template <class TInputImage, class TOutputImage>
 void 
-CentralIndexMapImageFilter<TInputImage, TOutputImage>
+ErodedVolumeFractionMapImageFilter<TInputImage, TOutputImage>
 ::GenerateInputRequestedRegion()
 {
   // call the superclass' implementation of this method
@@ -55,7 +55,7 @@ CentralIndexMapImageFilter<TInputImage, TOutputImage>
 
 template <class TInputImage, class TOutputImage>
 void 
-CentralIndexMapImageFilter<TInputImage, TOutputImage>
+ErodedVolumeFractionMapImageFilter<TInputImage, TOutputImage>
 ::EnlargeOutputRequestedRegion(DataObject *)
 {
   this->GetOutput()->SetRequestedRegion( this->GetOutput()->GetLargestPossibleRegion() );
@@ -64,7 +64,7 @@ CentralIndexMapImageFilter<TInputImage, TOutputImage>
 
 template<class TInputImage, class TOutputImage>
 void
-CentralIndexMapImageFilter<TInputImage, TOutputImage>
+ErodedVolumeFractionMapImageFilter<TInputImage, TOutputImage>
 ::GenerateData()
 {
   // do not allocate the output now, to decrease the memory usage
@@ -120,7 +120,7 @@ CentralIndexMapImageFilter<TInputImage, TOutputImage>
 
 template<class TInputImage, class TOutputImage>
 void
-CentralIndexMapImageFilter<TInputImage, TOutputImage>
+ErodedVolumeFractionMapImageFilter<TInputImage, TOutputImage>
 ::PrintSelf(std::ostream &os, Indent indent) const
 {
   Superclass::PrintSelf(os, indent);

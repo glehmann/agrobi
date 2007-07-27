@@ -28,3 +28,8 @@
 "no" "wap_cas_20070320_2m2.lsm" 1 298 241 12 87 "wap" 300 289 13
 "no" "wap_cas_20070320_4m1.lsm" 1 286 253 15 82 "wap" 245 340 21
 "no" "wap_cas_20070320_4m1.lsm" 1 286 253 15 82 "wap" 241 333 18
+"stimulation" "img" "nucleus" "x.nucleus" "y.nucleus" "z.nucleus" "threshold" "gene" "x.gene" "y.gene" "z.gene"
+"yes" "cells_est/ip_cas-fitc_wap-cy5.mdb/20070626_45.lsm" 1 326 229 13 58 "wap" 400 240 11
+"yes" "cells_est/ip_cas-fitc_wap-cy5.mdb/20070626_45.lsm" 1 326 229 13 58 "wap" 409 242 11
+"yes" "cells_est/ip_cas-fitc_wap-cy5.mdb/20070626_66.lsm" 4 418 313 33 64 "cas" 365 354 30
+"no" "cells_no-est/ip_cas-fitc_wap-cy5/20070604.mdb/20070604_29.lsm" 2 297 407 28 66 "wap" 238 422 39

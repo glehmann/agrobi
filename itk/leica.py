@@ -1,5 +1,13 @@
 
 
+# disable tiff warnings
+import ctypes
+libtiff = ctypes.cdll.LoadLibrary("/usr/lib/libtiff.so")
+libtiff.TIFFSetWarningHandler(0)
+del ctypes, libtiff
+
+
+
 import itkExtras
 
 class leica( itkExtras.pipeline ):

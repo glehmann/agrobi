@@ -95,23 +95,15 @@ maskNuclei = thresholdNuclei
 # split and labelize the nuclei
 watershedNuclei = itk.MorphologicalWatershedFromMarkersImageFilter.IF3IUC3.New(maurerRobustNuclei, maskWatershedRobustNuclei, MarkWatershedLine=False) #, FullyConnected=True)
 maskWatershedNuclei = itk.MaskImageFilter.IUC3IUC3IUC3.New(watershedNuclei, maskNuclei)
-#
 # the nuclei on the border are already removed in the robust procedure
-#
-# # remove the nucleus on the border - note that they can touch "a little" the border
-# labelSizeOnBorderOpeningNuclei = itk.LabelShapeOpeningImageFilter.IUC3.New(maskWatershedNuclei, Attribute="SizeOnBorder", Lambda=1500, ReverseOrdering=True)
-# # relabel the objects so we are sure to get consecutive labels after the opening
-# relabelNuclei = itk.ShapeRelabelImageFilter.IUC3.New(labelSizeOnBorderOpeningNuclei)
-# labelNuclei = relabelNuclei
-labelNuclei = maskWatershedNuclei
+reconstructionNuclei = itk.LabelReconstructionByDilationImageFilter.IUC3.New(labelRobustNuclei, maskWatershedNuclei)
+
+labelNuclei = reconstructionNuclei
 
 
 # create the label collection to get some data about the nucleus
-labelCollectionRobustNuclei = itk.LabelImageToLabelCollectionImageFilter.IUC3LI3.New(labelRobustNuclei, UseBackground=True)
-statisticsLabelCollectionRobustNuclei = itk.StatisticsLabelCollectionImageFilter.LI3IUC3.New(labelCollectionRobustNuclei, inputNuclei)
-
-labelCollectionNuclei = itk.LabelImageToLabelCollectionImageFilter.IUC3LI3.New(labelNuclei, UseBackground=True)
-shapeLabelCollectionNuclei = itk.ShapeLabelCollectionImageFilter.LI3.New(labelCollectionRobustNuclei)
+statisticsLabelCollectionRobustNuclei = itk.LabelImageToStatisticsLabelMapFilter.IUC3IUC3LM3.New(labelRobustNuclei, inputNuclei, UseBackground=True)
+shapeLabelCollectionNuclei = itk.LabelImageToShapeLabelMapFilter.IUC3LM3.New(labelNuclei, UseBackground=True)
 
 # select a single nucleus - see the loop at the end
 singleMaskNuclei = itk.BinaryThresholdImageFilter.IUC3IUC3.New(labelNuclei, UpperThreshold=1, LowerThreshold=1)
@@ -161,9 +153,8 @@ reconsWap = itk.ReconstructionByDilationImageFilter.IUC3IUC3.New(leavesWap, mask
 maximaWap = itk.RegionalMaximaImageFilter.IUC3IUC3.New(reconsWap)
 maskWap = maximaWap
 
-labelCollectionWap = itk.BinaryImageToLabelCollectionImageFilter.IUC3LI3.New(maskWap)
-statsLabelCollectionWap = itk.StatisticsLabelCollectionImageFilter.LI3IUC3.New(labelCollectionWap, inputWap, InPlace=False)
-statisticsNucleiLabelCollectionWap = itk.StatisticsLabelCollectionImageFilter.LI3IUC3.New(labelCollectionWap, readerNuclei)
+statsLabelCollectionWap = itk.BinaryImageToStatisticsLabelMapFilter.IUC3IUC3LM3.New(maskWap, inputWap)
+statisticsNucleiLabelCollectionWap = itk.StatisticsLabelMapFilter.LM3IUC3.New(statsLabelCollectionWap, readerNuclei, InPlace=False)
 
 
 ##########################
@@ -189,9 +180,8 @@ reconsCas = itk.BinaryReconstructionByDilationImageFilter.IUC3.New(singleMaskRob
 binarySizeOpeningCas = itk.BinaryShapeOpeningImageFilter.IUC3.New(reconsCas, Attribute="PhysicalSize", Lambda=0.02)
 maskCas = binarySizeOpeningCas
 
-labelCollectionCas = itk.BinaryImageToLabelCollectionImageFilter.IUC3LI3.New(maskCas)
-statisticsLabelCollectionCas = itk.StatisticsLabelCollectionImageFilter.LI3IUC3.New(labelCollectionCas, inputCas, InPlace=False)
-statisticsNucleiLabelCollectionCas = itk.StatisticsLabelCollectionImageFilter.LI3IUC3.New(labelCollectionCas, readerNuclei)
+statisticsLabelCollectionCas = itk.BinaryImageToStatisticsLabelMapFilter.IUC3IUC3LM3.New(maskCas, inputCas)
+statisticsNucleiLabelCollectionCas = itk.StatisticsLabelMapFilter.LM3IUC3.New(statisticsLabelCollectionCas, readerNuclei, InPlace=False)
 
 
 ##########################
@@ -306,7 +296,7 @@ for l in ls :
 	statsLabelCollectionWap.UpdateLargestPossibleRegion()
 	statisticsNucleiLabelCollectionWap.UpdateLargestPossibleRegion()
 	wapObjects = statsLabelCollectionWap.GetOutput()
-	for wl in range(1, wapObjects.GetNumberOfObjects()+1) :
+	for wl in range(1, wapObjects.GetNumberOfLabelObjects()+1) :
 		labelObject = wapObjects.GetLabelObject(wl)
 		cog = labelObject.GetCenterOfGravity()
 		centerContinuousIdx = [v/s for v, s in zip(cog, spacing)]
@@ -326,7 +316,7 @@ for l in ls :
 	statisticsLabelCollectionCas.Update()
 	statisticsNucleiLabelCollectionCas.UpdateLargestPossibleRegion()
 	casObjects = statisticsLabelCollectionCas.GetOutput()
-	for wl in range(1, casObjects.GetNumberOfObjects()+1) :
+	for wl in range(1, casObjects.GetNumberOfLabelObjects()+1) :
 		labelObject = casObjects.GetLabelObject(wl)
 		cog = labelObject.GetCenterOfGravity()
 		centerContinuousIdx = [v/s for v, s in zip(cog, spacing)]

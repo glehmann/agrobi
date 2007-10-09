@@ -17,32 +17,32 @@ opts, args = parser.parse_args()
 
 # check the arguments
 if len(args) != 1:
-	parser.error("incorrect number of arguments")
+  parser.error("incorrect number of arguments")
 
 inputImageName = args[0]
 
 if opts.verbose:
-	itk.auto_progress()
-	print >> sys.stderr, "Processing", inputImageName
+  itk.auto_progress()
+  print >> sys.stderr, "Processing", inputImageName
 
 if opts.threads > 0:
-	itk.MultiThreader.SetGlobalDefaultNumberOfThreads( opts.threads )
+  itk.MultiThreader.SetGlobalDefaultNumberOfThreads( opts.threads )
 
 
 # init the output files, if needed
 if opts.nuclei == "-":
-	nucleiFile = sys.stdout
+  nucleiFile = sys.stdout
 else:
-	nucleiFile = file( opts.nuclei, "a" )
-	if os.path.getsize( opts.nuclei ) == 0:
-		nucleiFile.write( '"stimulation" "img" "nucleus" "size" "elongation" "x" "y" "z" "mean" "sigma" "threshold" "otsu"\n' )
+  nucleiFile = file( opts.nuclei, "a" )
+  if os.path.getsize( opts.nuclei ) == 0:
+    nucleiFile.write( '"stimulation" "img" "nucleus" "size" "elongation" "x" "y" "z" "mean" "sigma" "threshold" "otsu"\n' )
 
 if opts.genes == "-":
-	genesFile = sys.stdout
+  genesFile = sys.stdout
 else:
-	genesFile = file( opts.genes, "a" )
-	if os.path.getsize( opts.genes ) == 0:
-		genesFile.write( '"stimulation" "img" "nucleus" "gene" "x" "y" "z" "px" "py" "pz" "dist" "ci" "mean" "max" "median" "nMean" "nMinimum" "nMaximum" "nMedian" "nSigma" "nKurtosis" "nSkewness"\n' )
+  genesFile = file( opts.genes, "a" )
+  if os.path.getsize( opts.genes ) == 0:
+    genesFile.write( '"stimulation" "img" "nucleus" "gene" "x" "y" "z" "px" "py" "pz" "dist" "ci" "mean" "max" "median" "nMean" "nMinimum" "nMaximum" "nMedian" "nSigma" "nKurtosis" "nSkewness"\n' )
 
 
 
@@ -102,17 +102,18 @@ labelNuclei = reconstructionNuclei
 
 
 # create the label collection to get some data about the nucleus
-statisticsLabelCollectionRobustNuclei = itk.LabelImageToStatisticsLabelMapFilter.IUC3IUC3LM3.New(labelRobustNuclei, inputNuclei, UseBackground=True)
-shapeLabelCollectionNuclei = itk.LabelImageToShapeLabelMapFilter.IUC3LM3.New(labelNuclei, UseBackground=True)
+statisticsLabelMapRobustNuclei = itk.LabelImageToStatisticsLabelMapFilter.IUC3IUC3LM3.New(labelRobustNuclei, inputNuclei)
+shapeLabelMapNuclei = itk.LabelImageToShapeLabelMapFilter.IUC3LM3.New(labelNuclei)
 
 # select a single nucleus - see the loop at the end
 singleMaskNuclei = itk.BinaryThresholdImageFilter.IUC3IUC3.New(labelNuclei, UpperThreshold=1, LowerThreshold=1)
-singleMaskRobustNuclei = itk.BinaryThresholdImageFilter.IUC3IUC3.New(labelRobustNuclei, UpperThreshold=1, LowerThreshold=1)
 # and compute the distance map. It is used too get the distance of the spot from the nuclear envelop
 # -- the mask is inverted to avoid the 0 distance pixels on the border of the object. We prefer to have them outside of the object.
-# roiNucleus = itk.RegionOfInterestImageFilter.IUC3IUC3.New(singleMaskRobustNuclei)
-# invertedSingleMaskRobustNuclei = itk.InvertIntensityImageFilter.IUC3IUC3.New(roiNucleus)
-invertedSingleMaskRobustNuclei = itk.InvertIntensityImageFilter.IUC3IUC3.New(singleMaskRobustNuclei)
+cropSingleMaskNuclei = itk.LabelMapMaskImageFilter.LM3IUC3.New(shapeLabelMapNuclei, singleMaskNuclei, Crop=True)
+cropStatisticsLabelMapRobustNuclei = itk.ChangeRegionLabelMapFilter.LM3.New(statisticsLabelMapRobustNuclei, InPlace=False)
+cropSingleMaskRobustNuclei = itk.LabelMapMaskImageFilter.LM3IUC3.New(cropStatisticsLabelMapRobustNuclei, cropSingleMaskNuclei)
+
+invertedSingleMaskRobustNuclei = itk.InvertIntensityImageFilter.IUC3IUC3.New(cropSingleMaskRobustNuclei)
 maurerSingleNuclei = itk.SignedMaurerDistanceMapImageFilter.IUC3IF3.New(invertedSingleMaskRobustNuclei, UseImageSpacing=True, SquaredDistance=False) #, InsideIsPositive=True)
 ciSingleRobustNuclei = itk.ErodedVolumeFractionMapImageFilter.IF3IF3.New(maurerSingleNuclei)
 # use an interpolator to get the distance at the exact center of gravity position
@@ -126,19 +127,15 @@ ciInterpolator = itk.LinearInterpolateImageFunction.IF3D.New(ciSingleRobustNucle
 ##########################
 
 readerWap = itk.lsm(channel=2)
-# mask the cytoplasm: there is too much noise
-maskNWap = itk.MaskImageFilter.IUC3IUC3IUC3.New(readerWap, maskNuclei)
-# roiWap = itk.RegionOfInterestImageFilter.IUC3IUC3.New(maskNWap)
 # again, remove some noise
-# medianWap = itk.MedianImageFilter.IUC3IUC3.New(roiWap)
-medianWap = itk.MedianImageFilter.IUC3IUC3.New(maskNWap)
+medianWap = itk.MedianImageFilter.IUC3IUC3.New(readerWap)
 gaussianWap = itk.SmoothingRecursiveGaussianImageFilter.IUC3IUC3.New(medianWap, Sigma=0.1)
 inputWap = gaussianWap
 # lets select a single nucleus in the cleaned input image. 2 versions are used:
 # - a first one using the robust nuclei procedure, to detect the spot
 # - a second one using the enlarged mask to extend the spots outside the nucleus if needed
-maskRobustNucleiWap = itk.MaskImageFilter.IUC3IUC3IUC3.New(inputWap, singleMaskRobustNuclei)
-maskNucleiWap = itk.MaskImageFilter.IUC3IUC3IUC3.New(inputWap, singleMaskNuclei)
+maskNucleiWap = itk.LabelMapMaskImageFilter.LM3IUC3.New(shapeLabelMapNuclei, inputWap, Crop=True)
+maskRobustNucleiWap = itk.LabelMapMaskImageFilter.LM3IUC3.New(cropStatisticsLabelMapRobustNuclei, maskNucleiWap)
 # wap images are quite difficult to segment, because their is lot of noise which look like... wap spots.
 # so keep the 4 more visible spots in the image, after have removed the region in the componenents too
 # big to be a spot
@@ -153,8 +150,8 @@ reconsWap = itk.ReconstructionByDilationImageFilter.IUC3IUC3.New(leavesWap, mask
 maximaWap = itk.RegionalMaximaImageFilter.IUC3IUC3.New(reconsWap)
 maskWap = maximaWap
 
-statsLabelCollectionWap = itk.BinaryImageToStatisticsLabelMapFilter.IUC3IUC3LM3.New(maskWap, inputWap)
-statisticsNucleiLabelCollectionWap = itk.StatisticsLabelMapFilter.LM3IUC3.New(statsLabelCollectionWap, readerNuclei, InPlace=False)
+statsLabelMapWap = itk.BinaryImageToStatisticsLabelMapFilter.IUC3IUC3LM3.New(maskWap, inputWap)
+statisticsNucleiLabelMapWap = itk.StatisticsLabelMapFilter.LM3IUC3.New(statsLabelMapWap, readerNuclei, InPlace=False)
 
 
 ##########################
@@ -162,7 +159,7 @@ statisticsNucleiLabelCollectionWap = itk.StatisticsLabelMapFilter.LM3IUC3.New(st
 ##########################
 
 readerCas = itk.lsm(channel=0)
-maskNCas = itk.MaskImageFilter.IUC3IUC3IUC3.New(readerCas, maskNuclei)
+maskNCas = itk.LabelMapMaskImageFilter.LM3IUC3.New(shapeLabelMapNuclei, readerCas, Crop=True)
 # again, remove some noise
 medianCas = itk.MedianImageFilter.IUC3IUC3.New(maskNCas)
 gaussianCas = itk.SmoothingRecursiveGaussianImageFilter.IUC3IUC3.New(medianCas, Sigma=0.1)
@@ -171,17 +168,17 @@ gaussianCas = itk.SmoothingRecursiveGaussianImageFilter.IUC3IUC3.New(medianCas, 
 # them, for a small cost
 sizeOpeningCas = itk.PhysicalSizeOpeningImageFilter.IUC3IUC3.New(gaussianCas, Lambda=2.0)
 subtractCas = itk.SubtractImageFilter.IUC3IUC3IUC3.New(gaussianCas, sizeOpeningCas)
-inputCas = subtractCas
-maskNucleiCas = itk.MaskImageFilter.IUC3IUC3IUC3.New(inputCas, singleMaskNuclei)
+# inputCas = subtractCas
+inputCas = gaussianCas
 # select the spot with a simple threshold
-thresholdCas = itk.BinaryThresholdImageFilter.IUC3IUC3.New(maskNucleiCas, LowerThreshold=59)
+thresholdCas = itk.BinaryThresholdImageFilter.IUC3IUC3.New(inputCas, LowerThreshold=59)
 # keep only the ones at least partially in the nucleus
-reconsCas = itk.BinaryReconstructionByDilationImageFilter.IUC3.New(singleMaskRobustNuclei, thresholdCas)
+reconsCas = itk.BinaryReconstructionByDilationImageFilter.IUC3.New(cropSingleMaskRobustNuclei, thresholdCas)
 binarySizeOpeningCas = itk.BinaryShapeOpeningImageFilter.IUC3.New(reconsCas, Attribute="PhysicalSize", Lambda=0.02)
 maskCas = binarySizeOpeningCas
 
-statisticsLabelCollectionCas = itk.BinaryImageToStatisticsLabelMapFilter.IUC3IUC3LM3.New(maskCas, inputCas)
-statisticsNucleiLabelCollectionCas = itk.StatisticsLabelMapFilter.LM3IUC3.New(statisticsLabelCollectionCas, readerNuclei, InPlace=False)
+statisticsLabelMapCas = itk.BinaryImageToStatisticsLabelMapFilter.IUC3IUC3LM3.New(maskCas, inputCas)
+statisticsNucleiLabelMapCas = itk.StatisticsLabelMapFilter.LM3IUC3.New(statisticsLabelMapCas, readerNuclei, InPlace=False)
 
 
 ##########################
@@ -189,9 +186,9 @@ statisticsNucleiLabelCollectionCas = itk.StatisticsLabelMapFilter.LM3IUC3.New(st
 ##########################
 
 def set_file_name( name ):
-	readerNuclei.SetFileName( name )
-	readerWap.SetFileName( name )
-	readerCas.SetFileName( name )
+  readerNuclei.SetFileName( name )
+  readerWap.SetFileName( name )
+  readerCas.SetFileName( name )
 
 
 # set_file_name( "wap_cas_20070320_10m2.lsm" )
@@ -209,146 +206,168 @@ set_file_name( inputImageName )
 ##########################
 
 if opts.visualValidation:
-	subLabelNuclei = itk.SubtractImageFilter.IUC3IUC3IUC3.New(labelNuclei, labelRobustNuclei)
-	overlayNuclei = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerNuclei, subLabelNuclei, UseBackground=True)
-	labels = itk.NaryRelabelImageFilter.IUC3IUC3.New(subLabelNuclei)
-	overlays = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerWap, labels, UseBackground=True)
-	
-	# create a cross structuring element - why I haven't implemented that in the FlatStructuringElement class, as well as a Ball()
-	# method which support the spacing ?
-	crossImage = itk.Image.UC3.New(Regions=[11,11,7])
-	crossImage.Allocate()
-	crossImage.FillBuffer(0)
-	for i in range(11):
-		crossImage.SetPixel((5,i,3), 255)
-		crossImage.SetPixel((i,5,3), 255)
-	for i in range(7):
-		crossImage.SetPixel((5,5,i), 255)
-	crossKernel = itk.FlatStructuringElement._3.FromImageUC(crossImage)
-	
-	# and create a dilate filter to draw the crosses on the cas and wap images
-	crossDilate = itk.BinaryDilateImageFilter.IUC3IUC3SE3.New(Kernel=crossKernel, ForegroundValue=200)
-	
-	# a function to copy the output of a filter in a new image
-	def copyImage( f ):
-		f.Update()
-		i = f.GetOutput()
-		imgDuplicator = itk.ImageDuplicator[i].New(i)
-		imgDuplicator.Update()
-		return imgDuplicator.GetOutput()
-	
-	# the list to store the images of the wap and caseins spots
-	caseins = []
-	waps = []
-
-	# v = itk.show(labels, MaxOpacity=0.05)
-	itk.write(overlayNuclei, readerNuclei.GetFileName()+"-nuclei.tif") #, True)
+  subLabelNuclei = itk.SubtractImageFilter.IUC3IUC3IUC3.New(labelNuclei, labelRobustNuclei)
+  overlayNuclei = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerNuclei, subLabelNuclei, UseBackground=True)
+  padLabels = itk.ChangeRegionLabelMapFilter.LM3.New()
+  lm2li = itk.LabelMapToLabelImageFilter.LM3IUC3.New(padLabels)
+  labels = itk.NaryRelabelImageFilter.IUC3IUC3.New(subLabelNuclei)
+  overlays = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerWap, labels, UseBackground=True)
+  
+  # create a cross structuring element - why I haven't implemented that in the FlatStructuringElement class, as well as a Ball()
+  # method which support the spacing ?
+  crossImage = itk.Image.UC3.New(Regions=[11,11,7])
+  crossImage.Allocate()
+  crossImage.FillBuffer(0)
+  
+  for i in range(11):
+    crossImage.SetPixel((5,i,3), 255)
+    crossImage.SetPixel((i,5,3), 255)
+    
+  for i in range(7):
+    crossImage.SetPixel((5,5,i), 255)
+    
+  crossKernel = itk.FlatStructuringElement._3.FromImageUC(crossImage)
+  
+  # and create a dilate filter to draw the crosses on the cas and wap images
+  crossDilate = itk.BinaryDilateImageFilter.IUC3IUC3SE3.New(Kernel=crossKernel, ForegroundValue=200)
+  
+  # a function to copy the output of a filter in a new image
+  def copyImage( f ):
+    f.UpdateLargestPossibleRegion()
+    i = f.GetOutput()
+    imgDuplicator = itk.ImageDuplicator[i].New(i)
+    imgDuplicator.Update()
+    return imgDuplicator.GetOutput()
+  
+  # a function to produce a full image from a cropped label image
+  def fullLabelImage( f ):
+    padLabels.SetInput( f.GetOutput() )
+    lm2li.UpdateLargestPossibleRegion()
+    i = lm2li.GetOutput()
+    imgDuplicator = itk.ImageDuplicator[i].New(i)
+    imgDuplicator.Update()
+    return imgDuplicator.GetOutput()
+  
+  # the list to store the images of the wap and caseins spots
+  caseins = []
+  waps = []
+  
+  # v = itk.show(labels, MaxOpacity=0.05)
+  itk.write(overlayNuclei, readerNuclei.GetFileName()+"-nuclei.tif") #, True)
 
 
 
 
 # let start, really
-statisticsLabelCollectionRobustNuclei.Update()
-shapeLabelCollectionNuclei.Update()
+statisticsLabelMapRobustNuclei.Update()
+shapeLabelMapNuclei.Update()
 otsuNuclei.Compute()
 
+if opts.visualValidation:
+  padLabels.SetRegion( readerNuclei.GetOutput().GetLargestPossibleRegion() )
+
 if opts.saveSegmentation:
-	itk.write( labelRobustNuclei, readerNuclei.GetFileName()+"-nuclei-segmentation.nrrd", True)
+  itk.write( labelRobustNuclei, readerNuclei.GetFileName()+"-nuclei-segmentation.nrrd", True)
 
 # to be reused later
 spacing = itk.spacing(readerNuclei)
 
 # find the labels used - we are not sure to have all the labels in the range because of the attribute openongs
-ls = [l+1 for l in range(*itk.range(labelRobustNuclei)) if statisticsLabelCollectionRobustNuclei.GetOutput().HasLabel(l+1)]
+ls = [l+1 for l in range(*itk.range(labelRobustNuclei)) if statisticsLabelMapRobustNuclei.GetOutput().HasLabel(l+1)]
 
 for l in ls :
-	if opts.verbose:
-		print >> sys.stderr, "  nuclei", l
-	
-	# set the label
-	singleMaskNuclei.SetUpperThreshold( l )
-	singleMaskNuclei.SetLowerThreshold( l )
-	singleMaskRobustNuclei.SetUpperThreshold( l )
-	singleMaskRobustNuclei.SetLowerThreshold( l )
-	
-	nucleusObject = statisticsLabelCollectionRobustNuclei.GetOutput().GetLabelObject(l)
-	nucleusSize = nucleusObject.GetPhysicalSize()
-	nucleusElongation = nucleusObject.GetRegionElongation()
-	nucleusIdx = [int(round(v)) for v in nucleusObject.GetCentroid()]
-	nucleusMean = nucleusObject.GetMean()
-	nucleusSigma = nucleusObject.GetSigma()
-	
-	print >> nucleiFile, '"%s"' % opts.stimulation, '"%s"' % readerNuclei.GetFileName(), l, nucleusElongation, nucleusSize, nucleusIdx[0], nucleusIdx[1], nucleusIdx[2], nucleusMean, nucleusSigma, robustNuclei.GetThreshold(), otsuNuclei.GetThreshold()
-	
-# 	roi = shapeLabelCollectionNuclei.GetOutput().GetLabelObject(l).GetRegion()
-# 	roiNucleus.SetRegionOfInterest( roi )
-# 	roiWap.SetRegionOfInterest( roi )
-	
-	# update the distance map
-	ciSingleRobustNuclei.UpdateLargestPossibleRegion()
-	
-	if opts.visualValidation:
-		# put the segmented waps and caseins in a new image
-		tempLabelWap = copyImage( maskWap )
-		tempLabelCas = copyImage( maskCas )
-		
-	# get info for wap
-	statsLabelCollectionWap.UpdateLargestPossibleRegion()
-	statisticsNucleiLabelCollectionWap.UpdateLargestPossibleRegion()
-	wapObjects = statsLabelCollectionWap.GetOutput()
-	for wl in range(1, wapObjects.GetNumberOfLabelObjects()+1) :
-		labelObject = wapObjects.GetLabelObject(wl)
-		cog = labelObject.GetCenterOfGravity()
-		centerContinuousIdx = [v/s for v, s in zip(cog, spacing)]
-		centerIdx = [int(round(v)) for v in centerContinuousIdx]
-		dist = maurerInterpolator.EvaluateAtContinuousIndex( centerContinuousIdx )
-		ci = ciInterpolator.EvaluateAtContinuousIndex( centerContinuousIdx )
-		  
-		labelObjectNuclei = statisticsNucleiLabelCollectionWap.GetOutput().GetLabelObject(wl)
-		
-		print >> genesFile, '"%s"' % opts.stimulation, '"%s"' % readerNuclei.GetFileName(), l, '"wap"', centerIdx[0], centerIdx[1], centerIdx[2], cog[0], cog[1], cog[2], dist, ci, labelObject.GetMean(), labelObject.GetMaximum(), labelObject.GetMedian(), labelObjectNuclei.GetMean(), labelObjectNuclei.GetMinimum(), labelObjectNuclei.GetMaximum(), labelObjectNuclei.GetMedian(), labelObjectNuclei.GetSigma(), labelObjectNuclei.GetKurtosis(), labelObjectNuclei.GetSkewness()
-		
-		if opts.visualValidation:
-			# write a single pixel in the output image to mark the center of the spot
-			tempLabelWap.SetPixel( centerIdx, 200 )
-	
-	# get info for cas
-	statisticsLabelCollectionCas.Update()
-	statisticsNucleiLabelCollectionCas.UpdateLargestPossibleRegion()
-	casObjects = statisticsLabelCollectionCas.GetOutput()
-	for wl in range(1, casObjects.GetNumberOfLabelObjects()+1) :
-		labelObject = casObjects.GetLabelObject(wl)
-		cog = labelObject.GetCenterOfGravity()
-		centerContinuousIdx = [v/s for v, s in zip(cog, spacing)]
-		centerIdx = [int(round(v)) for v in centerContinuousIdx]
-		dist = maurerInterpolator.EvaluateAtContinuousIndex( centerContinuousIdx )
-		ci = ciInterpolator.EvaluateAtContinuousIndex( centerContinuousIdx )
-		
-		labelObjectNuclei = statisticsNucleiLabelCollectionCas.GetOutput().GetLabelObject(wl)
-		
-		print >> genesFile, '"%s"' % opts.stimulation, '"%s"' % readerNuclei.GetFileName(), l, '"cas"', centerIdx[0], centerIdx[1], centerIdx[2], cog[0], cog[1], cog[2], dist, ci, labelObject.GetMean(), labelObject.GetMaximum(), labelObject.GetMedian(), labelObjectNuclei.GetMean(), labelObjectNuclei.GetMinimum(), labelObjectNuclei.GetMaximum(), labelObjectNuclei.GetMedian(), labelObjectNuclei.GetSigma(), labelObjectNuclei.GetKurtosis(), labelObjectNuclei.GetSkewness()
-		
-		if opts.visualValidation:
-			# write a single pixel in the output image to mark the center of the spot
-			tempLabelCas.SetPixel( centerIdx, 200 )
-		
-	if opts.visualValidation:
-		# draw the crosses on the image and copy the result to the image list
-		crossDilate.SetInput( tempLabelWap )
-		waps.append( copyImage( crossDilate ) )
-		crossDilate.SetInput( tempLabelCas )
-		caseins.append( copyImage( crossDilate ) )
-	
+  if opts.verbose:
+    print >> sys.stderr, "  nuclei", l
+  
+  # set the label
+  singleMaskNuclei.SetUpperThreshold( l )
+  singleMaskNuclei.SetLowerThreshold( l )
+  cropSingleMaskNuclei.SetLabel( l )
+  cropSingleMaskRobustNuclei.SetLabel( l )
+  
+  cropSingleMaskNuclei.UpdateLargestPossibleRegion()
+  cropStatisticsLabelMapRobustNuclei.SetRegion( cropSingleMaskNuclei.GetOutput().GetLargestPossibleRegion() )
+  
+  maskNucleiWap.SetLabel(l)
+  maskRobustNucleiWap.SetLabel(l)
+
+  maskNCas.SetLabel(l)
+  cropSingleMaskRobustNuclei.SetLabel(l)
+  
+  nucleusObject = statisticsLabelMapRobustNuclei.GetOutput().GetLabelObject(l)
+  nucleusSize = nucleusObject.GetPhysicalSize()
+  nucleusElongation = nucleusObject.GetRegionElongation()
+  nucleusIdx = [int(round(v)) for v in nucleusObject.GetCentroid()]
+  nucleusMean = nucleusObject.GetMean()
+  nucleusSigma = nucleusObject.GetSigma()
+  
+  print >> nucleiFile, '"%s"' % opts.stimulation, '"%s"' % readerNuclei.GetFileName(), l, nucleusElongation, nucleusSize, nucleusIdx[0], nucleusIdx[1], nucleusIdx[2], nucleusMean, nucleusSigma, robustNuclei.GetThreshold(), otsuNuclei.GetThreshold()
+  
+  # update the distance map
+  ciSingleRobustNuclei.UpdateLargestPossibleRegion()
+  
+  if opts.visualValidation:
+    # put the segmented waps and caseins in a new image
+    tempLabelWap = fullLabelImage( statsLabelMapWap )
+    tempLabelCas = fullLabelImage( statisticsLabelMapCas )
+    
+  # get info for wap
+  statsLabelMapWap.UpdateLargestPossibleRegion()
+  statisticsNucleiLabelMapWap.UpdateLargestPossibleRegion()
+  wapObjects = statsLabelMapWap.GetOutput()
+  for wl in range(1, wapObjects.GetNumberOfLabelObjects()+1) :
+    labelObject = wapObjects.GetLabelObject(wl)
+    cog = labelObject.GetCenterOfGravity()
+    centerContinuousIdx = [v/s for v, s in zip(cog, spacing)]
+    centerIdx = [int(round(v)) for v in centerContinuousIdx]
+    dist = maurerInterpolator.EvaluateAtContinuousIndex( centerContinuousIdx )
+    ci = ciInterpolator.EvaluateAtContinuousIndex( centerContinuousIdx )
+      
+    labelObjectNuclei = statisticsNucleiLabelMapWap.GetOutput().GetLabelObject(wl)
+    
+    print >> genesFile, '"%s"' % opts.stimulation, '"%s"' % readerNuclei.GetFileName(), l, '"wap"', centerIdx[0], centerIdx[1], centerIdx[2], cog[0], cog[1], cog[2], dist, ci, labelObject.GetMean(), labelObject.GetMaximum(), labelObject.GetMedian(), labelObjectNuclei.GetMean(), labelObjectNuclei.GetMinimum(), labelObjectNuclei.GetMaximum(), labelObjectNuclei.GetMedian(), labelObjectNuclei.GetSigma(), labelObjectNuclei.GetKurtosis(), labelObjectNuclei.GetSkewness()
+    
+    if opts.visualValidation:
+      # write a single pixel in the output image to mark the center of the spot
+      tempLabelWap.SetPixel( centerIdx, 200 )
+  
+  # get info for cas
+  statisticsLabelMapCas.UpdateLargestPossibleRegion()
+  statisticsNucleiLabelMapCas.UpdateLargestPossibleRegion()
+  casObjects = statisticsLabelMapCas.GetOutput()
+  for wl in range(1, casObjects.GetNumberOfLabelObjects()+1) :
+    labelObject = casObjects.GetLabelObject(wl)
+    cog = labelObject.GetCenterOfGravity()
+    centerContinuousIdx = [v/s for v, s in zip(cog, spacing)]
+    centerIdx = [int(round(v)) for v in centerContinuousIdx]
+    dist = maurerInterpolator.EvaluateAtContinuousIndex( centerContinuousIdx )
+    ci = ciInterpolator.EvaluateAtContinuousIndex( centerContinuousIdx )
+    
+    labelObjectNuclei = statisticsNucleiLabelMapCas.GetOutput().GetLabelObject(wl)
+    
+    print >> genesFile, '"%s"' % opts.stimulation, '"%s"' % readerNuclei.GetFileName(), l, '"cas"', centerIdx[0], centerIdx[1], centerIdx[2], cog[0], cog[1], cog[2], dist, ci, labelObject.GetMean(), labelObject.GetMaximum(), labelObject.GetMedian(), labelObjectNuclei.GetMean(), labelObjectNuclei.GetMinimum(), labelObjectNuclei.GetMaximum(), labelObjectNuclei.GetMedian(), labelObjectNuclei.GetSigma(), labelObjectNuclei.GetKurtosis(), labelObjectNuclei.GetSkewness()
+    
+    if opts.visualValidation:
+      # write a single pixel in the output image to mark the center of the spot
+      tempLabelCas.SetPixel( centerIdx, 200 )
+    
+  if opts.visualValidation:
+    # draw the crosses on the image and copy the result to the image list
+    crossDilate.SetInput( tempLabelWap )
+    waps.append( copyImage( crossDilate ) )
+    crossDilate.SetInput( tempLabelCas )
+    caseins.append( copyImage( crossDilate ) )
+  
 
 if opts.visualValidation:
-	overlays.SetInput( readerWap.GetOutput() )
-	for i, wap in enumerate( waps ):
-		labels.SetInput( i+1, wap)
-	itk.write(overlays, readerWap.GetFileName()+"-wap.tif") #, True)
+  overlays.SetInput( readerWap.GetOutput() )
+  for i, wap in enumerate( waps ):
+    labels.SetInput( i+1, wap)
+  itk.write(overlays, readerWap.GetFileName()+"-wap.tif") #, True)
 
-	overlays.SetInput( readerCas.GetOutput() )
-	for i, cas in enumerate( caseins ):
-		labels.SetInput( i+1, cas)
-	itk.write(overlays, readerWap.GetFileName()+"-cas.tif") #, True)
+  overlays.SetInput( readerCas.GetOutput() )
+  for i, cas in enumerate( caseins ):
+    labels.SetInput( i+1, cas)
+  itk.write(overlays, readerWap.GetFileName()+"-cas.tif") #, True)
 
 

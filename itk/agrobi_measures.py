@@ -12,16 +12,16 @@ opts, args = parser.parse_args()
 
 # check the arguments
 if len(args) != 1:
-	parser.error("incorrect number of arguments")
+  parser.error("incorrect number of arguments")
 inputFileName = args[0]
 inputFile = open( inputFileName )
 
 
 if opts.verbose:
-	itk.auto_progress()
+  itk.auto_progress()
 
 if opts.threads > 0:
-	itk.MultiThreader.SetGlobalDefaultNumberOfThreads( opts.threads )
+  itk.MultiThreader.SetGlobalDefaultNumberOfThreads( opts.threads )
 
 
 
@@ -51,39 +51,39 @@ print"stimulation", "img", "nucleus", "x.nucleus", "y.nucleus", "z.nucleus", "th
 inputFile.readline()
 
 for line in inputFile :
-	# read the parameters
-	paramsStr = line.split()
-	
-	# convert numbers to numbers
-	params = []
-	for p in paramsStr :
-		if p.isdigit():
-			params.append( int(p) )
-		else :
-			params.append( p )
-	
-	stimulation, img, nucleus, xNucleus, yNucleus, zNucleus, threshold, gene, xGene, yGene, zGene = params
+  # read the parameters
+  paramsStr = line.split()
+  
+  # convert numbers to numbers
+  params = []
+  for p in paramsStr :
+    if p.isdigit():
+      params.append( int(p) )
+    else :
+      params.append( p )
+  
+  stimulation, img, nucleus, xNucleus, yNucleus, zNucleus, threshold, gene, xGene, yGene, zGene = params
 
-	labelRobustNuclei.SetFileName( img[1:-1] + "-nuclei-segmentation.nrrd" ) # [1:-1] to remove the "" around the file name
-	labelRobustNuclei.UpdateLargestPossibleRegion()
-	
-	# get the label of the nucleus
-	l = labelRobustNuclei.GetOutput().GetPixel( [xNucleus, yNucleus, zNucleus] )
-	
-	# and use it to select only that nucleus in the image
-	singleMaskRobustNuclei.SetUpperThreshold( l )
-	singleMaskRobustNuclei.SetLowerThreshold( l )
-	
-	# then we can update the ci calculator
-	ciSingleRobustNuclei.UpdateLargestPossibleRegion()
+  labelRobustNuclei.SetFileName( img[1:-1] + "-nuclei-segmentation.nrrd" ) # [1:-1] to remove the "" around the file name
+  labelRobustNuclei.UpdateLargestPossibleRegion()
+  
+  # get the label of the nucleus
+  l = labelRobustNuclei.GetOutput().GetPixel( [xNucleus, yNucleus, zNucleus] )
+  
+  # and use it to select only that nucleus in the image
+  singleMaskRobustNuclei.SetUpperThreshold( l )
+  singleMaskRobustNuclei.SetLowerThreshold( l )
+  
+  # then we can update the ci calculator
+  ciSingleRobustNuclei.UpdateLargestPossibleRegion()
 
-	# and read the CI and get the distance from the map
-	ci = ciSingleRobustNuclei.GetOutput().GetPixel( [xGene, yGene, zGene] )
-	dist = maurerSingleNuclei.GetOutput().GetPixel( [xGene, yGene, zGene] )
-	
-	# finally compute the physical position 
-	pp = itk.index_to_physical_point( labelRobustNuclei, [xGene, yGene, zGene] )
-	
-	# and print the results
-	print stimulation, img, nucleus, xNucleus, yNucleus, zNucleus, threshold, gene, xGene, yGene, zGene, pp[0], pp[1], pp[2], dist, ci
-	
+  # and read the CI and get the distance from the map
+  ci = ciSingleRobustNuclei.GetOutput().GetPixel( [xGene, yGene, zGene] )
+  dist = maurerSingleNuclei.GetOutput().GetPixel( [xGene, yGene, zGene] )
+  
+  # finally compute the physical position 
+  pp = itk.index_to_physical_point( labelRobustNuclei, [xGene, yGene, zGene] )
+  
+  # and print the results
+  print stimulation, img, nucleus, xNucleus, yNucleus, zNucleus, threshold, gene, xGene, yGene, zGene, pp[0], pp[1], pp[2], dist, ci
+  

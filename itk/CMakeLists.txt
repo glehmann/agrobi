@@ -26,6 +26,7 @@ SET(Required_Packages
 FOREACH(Package ${Required_Packages})
   LOADPACKAGE(${Package})
 ENDFOREACH(Package)
+INCLUDE_DIRECTORIES("/home/glehmann/src/contrib-itk/binaryAttributeMorphology/")
 
 #Set any libraries that your project depends on.
 #examples: ITKCommon, VTKRendering, etc
@@ -33,6 +34,7 @@ SET(Libraries
   ITKCommon
   ITKBasicFilters
   ITKIO
+  ITKStatistics
 )
 
 
@@ -63,9 +65,9 @@ ENDIF(BUILD_WRAPPERS)
 
 IF(BUILD_TESTING)
 
-#SET(CurrentExe "check")
-#ADD_EXECUTABLE(${CurrentExe} ${CurrentExe}.cxx)
-#TARGET_LINK_LIBRARIES(${CurrentExe} ${Libraries})
+SET(CurrentExe "festimator")
+ADD_EXECUTABLE(${CurrentExe} ${CurrentExe}.cxx)
+TARGET_LINK_LIBRARIES(${CurrentExe} ${Libraries})
 
 ENDIF(BUILD_TESTING)
 

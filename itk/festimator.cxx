@@ -8,6 +8,7 @@
 #include "itkSignedMaurerDistanceMapImageFilter.h"
 #include "itkScalarImageToHistogramGenerator.h"
 #include <algorithm>
+#include "itkMersenneTwisterRandomVariateGenerator.h"
 
 
 const int dim = 3;
@@ -30,9 +31,17 @@ typedef HistogramType::ConstPointer HistogramConstPointerType;
 typedef std::vector<IndexType> IndexListType;
 typedef std::vector<double> FListType;
 
+static itk::Statistics::MersenneTwisterRandomVariateGenerator::Pointer randomGenerator;
+
 long random( long lowest, long highest )
 {
-  return lowest + static_cast< long >( ( ( highest - lowest ) + 1 ) *( rand() / ( RAND_MAX + 1.0 ) ) );
+  if( randomGenerator.IsNull() )
+    {
+    randomGenerator = itk::Statistics::MersenneTwisterRandomVariateGenerator::New();
+    randomGenerator->Initialize();
+    }
+  return randomGenerator->GetIntegerVariate( highest - lowest ) + lowest;
+//   return lowest + static_cast< long >( ( ( highest - lowest ) + 1 ) *( rand() / ( RAND_MAX + 1.0 ) ) );
 /*  return lowest+long(((highest-lowest)+1)*rand()/(RAND_MAX + 1.0));*/
 }
 
@@ -131,6 +140,10 @@ FListType festimator( const IType * input, PType label, const IndexListType & in
   return ratios;
 }
 
+
+
+
+
 int main(int argc, char * argv[])
 {
 
@@ -141,7 +154,7 @@ int main(int argc, char * argv[])
     exit(1);
     }
   // a random seed: the time
-  srand((unsigned)time(0));
+//   srand((unsigned)time(0));
 
   // lets load the label image of the nuclei
   ReaderType::Pointer reader = ReaderType::New();

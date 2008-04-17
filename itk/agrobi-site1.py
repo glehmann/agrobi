@@ -108,141 +108,88 @@ def copyImage( f ):
 
 readerNuclei = itk.lsm(channel=0)
 
-# first reduce the number of pixels by 8, to be able to process the images
-downSampleNuclei = itk.ResampleImageFilter.IUC3IUC3.New(readerNuclei, Interpolator=ni.GetPointer())
-sMedianNuclei = itk.MedianImageFilter.IUC3IUC3.New(downSampleNuclei)
-sSizeNuclei = itk.PhysicalSizeOpeningImageFilter.IUC3IUC3.New(sMedianNuclei, Lambda=100)
-sGaussianNuclei = itk.SmoothingRecursiveGaussianImageFilter.IUC3IUC3.New(sSizeNuclei, Sigma=0.2)
-sFillNuclei = itk.SliceBySliceImageFilter.IUC3IUC3.New(sGaussianNuclei, Filter=fill.GetPointer())
-sGradientNuclei = itk.GradientMagnitudeRecursiveGaussianImageFilter.IUC3IUC3.New(sFillNuclei, Sigma=0.36)
-sRatsNuclei = itk.RobustAutomaticThresholdImageFilter.IUC3IUC3IUC3.New(sFillNuclei, sGradientNuclei)
-# sOpeningNuclei = itk.BinaryMorphologicalOpeningImageFilter.IUC3IUC3SE3.New(sRatsNuclei, Kernel=itk.strel(3, 5)) # TODO: remove it???
-# sBorderNuclei = itk.BinaryShapeOpeningImageFilter.IUC3.New(sOpeningNuclei, Attribute="PhysicalSizeOnBorder", Lambda=50, ReverseOrdering=True)
-sBorderNuclei = itk.BinaryShapeOpeningImageFilter.IUC3.New(sRatsNuclei, Attribute="PhysicalSizeOnBorder", Lambda=50, ReverseOrdering=True)
-sBSizeNuclei = itk.BinaryShapeOpeningImageFilter.IUC3.New(sBorderNuclei, Attribute="PhysicalSize", Lambda=200)
-upSampleNuclei = itk.ResampleImageFilter.IUC3IUC3.New(sBSizeNuclei, UseReferenceImage=True, ReferenceImage=readerNuclei.GetOutput(), Interpolator=ni.GetPointer())
-upShapeNuclei = itk.BinaryImageToShapeLabelMapFilter.IUC3LM3.New(upSampleNuclei)
+medianNuclei = itk.MedianImageFilter.IUC3IUC3.New(readerNuclei)
+gaussianNuclei = itk.SmoothingRecursiveGaussianImageFilter.IUC3IUC3.New(medianNuclei, Sigma=0.2)
+fillNuclei = itk.SliceBySliceImageFilter.IUC3IUC3.New(gaussianNuclei, Filter=fill.GetPointer())
+sizeNuclei = itk.PhysicalSizeOpeningImageFilter.IUC3IUC3.New(fillNuclei, Lambda=200)
+gradientNuclei = itk.GradientMagnitudeRecursiveGaussianImageFilter.IUC3IUC3.New(sizeNuclei, Sigma=0.36)
+ratsNuclei = itk.RobustAutomaticThresholdImageFilter.IUC3IUC3IUC3.New(sizeNuclei, gradientNuclei)
+# split and labelize the nuclei
+maurerNuclei = itk.SignedMaurerDistanceMapImageFilter.IUC3IF3.New(ratsNuclei, UseImageSpacing=True)
+watershedNuclei = itk.MorphologicalWatershedImageFilter.IF3IUC3.New(maurerNuclei, Level=2.0, MarkWatershedLine=False) #, FullyConnected=True)
+maskWatershedNuclei = itk.MaskImageFilter.IUC3IUC3IUC3.New(watershedNuclei, ratsNuclei)
+shapeNuclei = itk.LabelImageToShapeLabelMapFilter.IUC3LM3.New(maskWatershedNuclei)
+# remove (again) the objects too small to be a nucleus
+sizeOpeningNuclei = itk.ShapeOpeningLabelMapFilter.LM3.New(shapeNuclei, Attribute="PhysicalSize", Lambda=200)
+# remove the nucleus on the border - note that they can touch "a little" the border
+borderNuclei = itk.ShapeOpeningLabelMapFilter.LM3.New(sizeOpeningNuclei, Attribute="PhysicalSizeOnBorder", Lambda=50, ReverseOrdering=True)
+relabelNuclei = itk.ShapeRelabelLabelMapFilter.LM3.New(borderNuclei)
+lm2iNuclei = itk.LabelMapToLabelImageFilter.LM3IUC3.New(relabelNuclei)
 
-# now segment again, but 1 nucleus by 1 nucleus, to get a mask at the full resolution
-singleNuclei = itk.ExtractImageFilter.IUC3IUC3.New(readerNuclei)
-singleMedianNuclei = itk.MedianImageFilter.IUC3IUC3.New(singleNuclei)
-singleSizeNuclei = itk.PhysicalSizeOpeningImageFilter.IUC3IUC3.New(singleMedianNuclei, Lambda=100)
-singleGaussianNuclei = itk.SmoothingRecursiveGaussianImageFilter.IUC3IUC3.New(singleSizeNuclei, Sigma=0.2)
-singleFillNuclei = itk.SliceBySliceImageFilter.IUC3IUC3.New(singleGaussianNuclei, Filter=fill.GetPointer())
-singleGradientNuclei = itk.GradientMagnitudeRecursiveGaussianImageFilter.IUC3IUC3.New(singleFillNuclei, Sigma=0.36)
-singleRatsNuclei = itk.RobustAutomaticThresholdImageFilter.IUC3IUC3IUC3.New(singleFillNuclei, singleGradientNuclei)
-# keep only the object which contains the center of the nuclei in the lowres mask
-singleShapeNuclei = itk.BinaryImageToShapeLabelMapFilter.IUC3LM3.New(singleRatsNuclei)
-# singleLabelNuclei = itk.LabelSelectionLabelMapFilter.LM3.New(singleShapeNuclei, Label=1)
-singleRelabelNuclei = itk.ShapeRelabelLabelMapFilter.LM3.New(singleShapeNuclei)
-singleLabelNuclei = itk.ShapeKeepNObjectsLabelMapFilter.LM3.New(singleRelabelNuclei, NumberOfObjects=1)
-singleChangeRegionNuclei = itk.RegionFromReferenceLabelMapFilter.LM3.New(singleLabelNuclei, readerNuclei, InPlace=False)
-singleFullLabelNuclei = itk.LabelMapToLabelImageFilter.LM3IUC3.New(singleChangeRegionNuclei)
-
-naryRelabelNuclei = itk.NaryRelabelImageFilter.IUC3IUC3.New()
 if opts.visualValidation:
-  overlayNuclei = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerNuclei, naryRelabelNuclei, UseBackground=True)
+  overlayNuclei = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerNuclei, lm2iNuclei)
 
 
 readerCENP = itk.lsm(channel=1)
-maskCENP = itk.LabelMapMaskImageFilter.LM3IUC3.New(singleLabelNuclei, readerCENP, Crop=True, Label=1, CropBorder=4)
-medianCENP = itk.MedianImageFilter.IUC3IUC3.New(maskCENP)
+medianCENP = itk.MedianImageFilter.IUC3IUC3.New(readerCENP)
 gaussianCENP = itk.SmoothingRecursiveGaussianImageFilter.IUC3IUC3.New(medianCENP, Sigma=0.05)
 sizeCENP = itk.PhysicalSizeOpeningImageFilter.IUC3IUC3.New(gaussianCENP, Lambda=2.0)
 subCENP = itk.SubtractImageFilter.IUC3IUC3IUC3.New(gaussianCENP, sizeCENP)
 thCENP = itk.BinaryThresholdImageFilter.IUC3IUC3.New(subCENP, LowerThreshold=35)
-bsizeCENP = itk.BinaryShapeOpeningImageFilter.IUC3.New(thCENP, Attribute="PhysicalSize", Lambda=0.01)
+maskCENP = itk.LabelMapMaskImageFilter.LM3IUC3.New(relabelNuclei, thCENP, Label=0, Negated=True)
+statsCENP = itk.BinaryImageToStatisticsLabelMapFilter.IUC3IUC3LM3.New(maskCENP, subCENP)
+bsizeCENP = itk.ShapeOpeningLabelMapFilter.LM3.New(statsCENP, Attribute="PhysicalSize", Lambda=0.01)
+relabelCENP = itk.ShapeRelabelLabelMapFilter.LM3.New(bsizeCENP)
 
-statsCENP = itk.BinaryImageToStatisticsLabelMapFilter.IUC3IUC3LM3.New(bsizeCENP, subCENP)
+fullCENP = itk.LabelMapToBinaryImageFilter.LM3IUC3.New(relabelCENP)
 
-changeRegionCENP = itk.RegionFromReferenceLabelMapFilter.LM3.New(statsCENP, readerCENP, InPlace=False)
-fullLabelCENP = itk.LabelMapToLabelImageFilter.LM3IUC3.New(changeRegionCENP)
-
-outsideMask = itk.BinaryThresholdImageFilter.IUC3IUC3.New(naryRelabelNuclei, UpperThreshold=0)
-naryRelabelCENP = itk.NaryRelabelImageFilter.IUC3IUC3.New(outsideMask)
+outsideMask = itk.BinaryThresholdImageFilter.IUC3IUC3.New(lm2iNuclei, UpperThreshold=0)
+naryRelabelCENP = itk.NaryRelabelImageFilter.IUC3IUC3.New(outsideMask, fullCENP)
 if opts.visualValidation:
-  overlayCENP = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerCENP, naryRelabelCENP, UseBackground=True)
+  overlayCENP = itk.LabelOverlayImageFilter.IUC3IUC3IRGBUC3.New(readerCENP, naryRelabelCENP)
 
 readerNuclei.SetFileName(inputImageName)
 readerCENP.SetFileName(inputImageName)
 
-if 'blastocyste' in inputImageName:
+if 'blasto' in inputImageName:
   if opts.verbose:
     print >> sys.stderr, "swapping channels"
   readerCENP.SetChannel(0)
   readerNuclei.SetChannel(1)
-
-print itk.size(readerNuclei)
-
-# now set the values which can't be set without having loaded the image
-newSpacing = [s*2 for s in itk.spacing(readerNuclei)]
-newSize = [s/2 for s in itk.size(readerNuclei)]
-downSampleNuclei.SetOutputSpacing(newSpacing)
-downSampleNuclei.SetSize(newSize)
-singleChangeRegionNuclei.SetRegion( readerNuclei.GetOutput().GetLargestPossibleRegion() )
 
 # create a new image to store the CENP centers, so they can be easily reused to check the distribution
 cenpSpotsImg = itk.Image.UC3.New(Regions=itk.size(readerNuclei), Spacing=itk.spacing(readerNuclei))
 cenpSpotsImg.Allocate()
 cenpSpotsImg.FillBuffer(0)
 
-nucleiLabels = []
-CENPLabels = []
-
-upShapeNuclei.UpdateLargestPossibleRegion()
+relabelNuclei.UpdateLargestPossibleRegion()
 
 
-for l in range(5, upShapeNuclei.GetOutput().GetNumberOfLabelObjects()+1, 2):
-  if opts.verbose:
-    print >> sys.stderr, "processing nucleus", l
-  # prepare the region for the extract filter
-  region = upShapeNuclei.GetOutput().GetLabelObject(l).GetRegion()
-  
-  region.PadByRadius(4)
-  region.Crop(readerNuclei.GetOutput().GetLargestPossibleRegion())
-  print >> sys.stderr, region.GetIndex(), region.GetSize()
-  
-  singleNuclei.SetExtractionRegion(region)
-  # keep only the object which contains the center of the nuclei in the lowres mask
-#   singleShapeNuclei.UpdateLargestPossibleRegion()
-#   print singleShapeNuclei.GetOutput().GetPixel(itk.physical_point_to_index(upShapeNuclei, upShapeNuclei.GetOutput().GetLabelObject(1).GetCentroid()))
-#   singleLabelNuclei.SetLabel( singleShapeNuclei.GetOutput().GetPixel(itk.physical_point_to_index(upShapeNuclei, upShapeNuclei.GetOutput().GetLabelObject(1).GetCentroid())) )
-  
-  singleShapeNuclei.UpdateLargestPossibleRegion()
-  singleLabelNuclei.UpdateLargestPossibleRegion()
-#   print "singleShapeNuclei.GetOutput().GetNumberOfLabelObjects():", singleShapeNuclei.GetOutput().GetNumberOfLabelObjects()
-#   print "singleLabelNuclei.GetOutput().GetNumberOfLabelObjects():", singleLabelNuclei.GetOutput().GetNumberOfLabelObjects()
-#   itk.write(singleRatsNuclei, readerNuclei.GetFileName()+"-nuclei"+str(l)+".tif")
-  nucleiLabels.append( copyImage( singleFullLabelNuclei ) )
-  itk.write(singleFullLabelNuclei, readerNuclei.GetFileName()+"-nuclei-"+str(l)+".nrrd", True)
-  naryRelabelNuclei.SetInput( l-1, nucleiLabels[-1] )
-  
-  nucleusLabelObject = singleShapeNuclei.GetOutput().GetLabelObject(1)
-  # nulceusCentroid = itk.GetCentroid()
-#   print l, nucleusLabelObject.GetPhysicalSize(), number_of_objects(statsCENP)
-  
-  medianCENP.UpdateLargestPossibleRegion()
-#   print >> sys.stderr, "size: ", medianCENP.GetOutput().GetLargestPossibleRegion().GetSize()
-
-  CENPLabels.append( copyImage( fullLabelCENP ) )
-  naryRelabelCENP.SetInput( l, CENPLabels[-1] )
-
-  for l2 in range(1, statsCENP.GetOutput().GetNumberOfLabelObjects()+1):
-    cog = statsCENP.GetOutput().GetLabelObject(l2).GetCenterOfGravity()
-    idx = itk.physical_point_to_index(cenpSpotsImg, cog)
-    cenpSpotsImg.SetPixel(idx, 255)
-    print >> genesFile, '"'+readerNuclei.GetFileName()+'"', l, " ".join(str(i) for i in idx), " ".join(str(i) for i in cog)
-    
-  # some basic outputs about nuclei
-#   print nucleusLabelObject
-  print >> nucleiFile, '"'+readerNuclei.GetFileName()+'"', l, nucleusLabelObject.GetPhysicalSize(), nucleusLabelObject.GetRegionElongation(), statsCENP.GetOutput().GetNumberOfLabelObjects(), ' '.join([str(i) for i in itk.physical_point_to_index(upShapeNuclei, nucleusLabelObject.GetCentroid())])
-  
 if opts.saveSegmentation:
-  itk.write(naryRelabelNuclei, readerNuclei.GetFileName()+"-nuclei.nrrd", True)
-  itk.write(cenpSpotsImg, readerNuclei.GetFileName()+"-CENP.nrrd", True)
+  itk.write(lm2iNuclei, readerNuclei.GetFileName()+"-nuclei.nrrd", True)
 
 if opts.visualValidation:
   itk.write(overlayNuclei, readerNuclei.GetFileName()+"-nuclei.tif") #, True)
   itk.write(overlayCENP, readerNuclei.GetFileName()+"-CENP.tif") #, True)
+
+nbOfSpots = {}
+for l in range(1, relabelCENP.GetOutput().GetNumberOfLabelObjects()+1):
+  cog = relabelCENP.GetOutput().GetLabelObject(l).GetCenterOfGravity()
+  idx = itk.physical_point_to_index(cenpSpotsImg, cog)
+  cenpSpotsImg.SetPixel(idx, 255)
+  nucleus = lm2iNuclei.GetOutput().GetPixel(idx)
+  if nucleus == 0:
+    print >> sys.stderr, "spot outside a nucleus at position ", idx
+  print >> genesFile, '"'+readerNuclei.GetFileName()+'"', nucleus, " ".join(str(i) for i in idx), " ".join(str(i) for i in cog)
+  nbOfSpots[nucleus] = nbOfSpots.get(nucleus, 0) + 1
+    
+for l in range(1, relabelNuclei.GetOutput().GetNumberOfLabelObjects()+1):
+  # some basic outputs about nuclei
+  nucleusLabelObject = relabelNuclei.GetOutput().GetLabelObject(l)
+  print >> nucleiFile, '"'+readerNuclei.GetFileName()+'"', l, nucleusLabelObject.GetPhysicalSize(), nucleusLabelObject.GetRegionElongation(), nbOfSpots.get(l, 0), ' '.join([str(i) for i in itk.physical_point_to_index(relabelNuclei, nucleusLabelObject.GetCentroid())])
+  
+if opts.saveSegmentation:
+  itk.write(cenpSpotsImg, readerNuclei.GetFileName()+"-CENP.nrrd", True)
+
 
   

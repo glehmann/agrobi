@@ -9,7 +9,10 @@
 #include "itkScalarImageToHistogramGenerator.h"
 #include <algorithm>
 #include "itkMersenneTwisterRandomVariateGenerator.h"
-
+#include "itkLabelMapMaskImageFilter.h"
+#include "itkConnectedComponentImageFilter.h"
+#include <fstream>
+#include <iostream>
 
 const int dim = 3;
 const int hist_size = 1024;
@@ -22,6 +25,7 @@ typedef itk::ImageFileReader< IType > ReaderType;
 typedef itk::ShapeLabelObject< unsigned char, dim > LabelObjectType;
 typedef itk::LabelMap< LabelObjectType > LabelMapType;
 typedef itk::LabelImageToShapeLabelMapFilter< IType, LabelMapType > LI2LMType;
+typedef itk::LabelMapMaskImageFilter< LabelMapType, IType > MaskType;
 typedef itk::Image< float, dim > DistImgType;
 typedef itk::SignedMaurerDistanceMapImageFilter< IType, DistImgType > DistType;
 typedef itk::Statistics::ScalarImageToHistogramGenerator< DistImgType, IType > HistGenType;
@@ -30,6 +34,7 @@ typedef HistogramType::Pointer HistogramPointerType;
 typedef HistogramType::ConstPointer HistogramConstPointerType;
 typedef std::vector<IndexType> IndexListType;
 typedef std::vector<double> FListType;
+typedef itk::ConnectedComponentImageFilter< IType, IType > ConnType;
 
 static itk::Statistics::MersenneTwisterRandomVariateGenerator::Pointer randomGenerator;
 
@@ -55,7 +60,7 @@ for( int i=0; i<hist_size; i++ )
   return d;
 }
 
-FListType festimator( const IType * input, PType label, const IndexListType & indexList, int nbOfRandIdx )
+FListType festimator( const IType * input, const IType * spots, PType label, int nbOfRandIdx, long & realNbOfIdx )
 {
   // convert it to a label map representation
   LI2LMType::Pointer li2lm = LI2LMType::New();
@@ -67,18 +72,25 @@ FListType festimator( const IType * input, PType label, const IndexListType & in
 //   std::cout << "lo->GetSize(): " << lo->GetSize() << std::endl;
   
   // create a new image with the size of the bounding box of the label object where we will draw the points.
-  IType::Pointer img = IType::New();
-  img->SetRegions( lo->GetRegion() );
-  img->SetSpacing( input->GetSpacing() );
-  img->Allocate();
-  img->FillBuffer( 0 );
-  for( int i=0; i<indexList.size(); i++ )
+  IType::Pointer img;
+  if( spots )
     {
-    if( img->GetPixel( indexList[i] ) == 255 )
-      {
-      std::cerr << "Warning, pixel already set." << std::endl;
-      }
-    img->SetPixel( indexList[i], 255 );
+    // keep only the interesting part in the image - the one inside the nucleus
+    MaskType::Pointer mask = MaskType::New();
+    mask->SetInput( li2lm->GetOutput() );
+    mask->SetFeatureImage( spots );
+    mask->SetLabel( label );
+    mask->SetCrop( true );
+    mask->Update();
+    img = const_cast<IType*>( mask->GetOutput() );
+    }
+  else
+    {
+    img = IType::New();
+    img->SetRegions( lo->GetRegion() );
+    img->SetSpacing( input->GetSpacing() );
+    img->Allocate();
+    img->FillBuffer( 0 );
     }
 
   // random generated pixels
@@ -92,21 +104,23 @@ FListType festimator( const IType * input, PType label, const IndexListType & in
     img->SetPixel( idx, 255 );
     }
 
+  // count the spots
+  // std::cerr << "Warning, pixel already set." << std::endl;
+  ConnType::Pointer connected = ConnType::New();
+  connected->SetInput( img );
+  connected->Update();
+  realNbOfIdx = connected->GetObjectCount();
+   
   // generate the distance map
+  // std::cerr << "generate the distance map" << std::endl;
   DistType::Pointer dist = DistType::New();
   dist->SetInput( img );
   dist->SetUseImageSpacing( true );
   dist->SetSquaredDistance( false );
 //   itk::SimpleFilterWatcher watcher(dist, "filter");
   dist->Update();
-
-  typedef itk::ImageFileWriter< DistImgType > WriterType;
-  WriterType::Pointer writer = WriterType::New();
-  writer->SetInput( dist->GetOutput() );
-  writer->SetFileName( "dist.nrrd" );
-  writer->Update();
-
   
+ 
 //   // crop the input label image to the bounding box of the object of interest so we can use it to mask the image
 //   typedef itk::RegionFromReferenceLabelMapFilter< LabelMapType > CropType;
 //   CropType::Pointer crop = CropType::New();
@@ -115,6 +129,7 @@ FListType festimator( const IType * input, PType label, const IndexListType & in
 //   crop->SetReference( img );
 
   // compute histogram
+  // std::cerr << "compute histogram" << std::endl;
   HistGenType::Pointer histGen = HistGenType::New();
   histGen->SetInput( dist->GetOutput() );
   histGen->SetMaskImage( input );
@@ -128,6 +143,7 @@ FListType festimator( const IType * input, PType label, const IndexListType & in
   HistogramConstPointerType histogram = histGen->GetOutput();
 
   // compute the ratio for all the distances
+  // std::cerr << "compute the ratio for all the distances" << std::endl;
   FListType ratios;
   ratios.reserve( hist_size );
   long current_size = 0;
@@ -156,33 +172,58 @@ int main(int argc, char * argv[])
   // a random seed: the time
 //   srand((unsigned)time(0));
 
-  // lets load the label image of the nuclei
-  ReaderType::Pointer reader = ReaderType::New();
-  reader->SetFileName( argv[1] );
+  std::cerr << argv[1] << "  nucleus: " << argv[2] << std::endl;
+  // store the filename to reuse it later
+  std::string basename = argv[1];
+  // and the label to analyse
+  std::string labelStr = argv[2];
+  int label = atoi( labelStr.c_str() );
 
-  int label = atoi( argv[2] );
+  // lets load the label image of the nuclei
+  std::string nucleiFile = basename + "-nuclei.nrrd";
+  ReaderType::Pointer reader = ReaderType::New();
+  reader->SetFileName( nucleiFile.c_str() );
+  reader->Update();
+
+  // and the image of the spots
+  std::string spotsFile = basename + "-CENP.nrrd";
+  ReaderType::Pointer reader2 = ReaderType::New();
+  reader2->SetFileName( spotsFile.c_str() );
+  reader2->Update();
+
+  // compute estimation of F for the indexes in the nucleus
+  long nbOfSpots = 0;
+  FListType F = festimator( reader->GetOutput(), reader2->GetOutput(), label, 0, nbOfSpots );
 
   // compute Fmean
-  IndexListType emptyIndexList;
   FListType Fmean( hist_size, 0 );
   std::vector<FListType> Fsims;
 
   for( int iter=0; iter<sim; iter++ )
     {
-//     std::cerr << iter << std::endl;
-    FListType F = festimator( reader->GetOutput(), label, emptyIndexList, 40 );
-    Fsims.push_back( F );
+    std::cerr << iter << " "; // << std::endl;
+    long dummy;
+    FListType Fsim = festimator( reader->GetOutput(), NULL, label, nbOfSpots, dummy );
+    Fsims.push_back( Fsim );
   //   std::cout << std::endl;
     for( int i=0; i<hist_size; i++ )
       {
-      Fmean[i] += F[i] / sim;
+      Fmean[i] += Fsim[i] / sim;
       }
     }
+  std::cerr << std::endl;
 
-  // compute estimation of F for the indexes in the nucleus
-  // TODO: read the data from a file
-  FListType F = festimator( reader->GetOutput(), label, emptyIndexList, 40 );
-
+  // to see what the F functions looks like
+   std::string outFName = basename+"-"+labelStr+"-F.txt";
+   std::ofstream outF(outFName.c_str(), std::ios::out);
+   std::string outFMeanName = basename+"-"+labelStr+"-FMean.txt";
+   std::ofstream outFMean(outFMeanName.c_str(), std::ios::out);
+  for( int i=0; i<hist_size; i++ )
+    {
+    outF << F[i] << std::endl;
+    outFMean << Fmean[i] << std::endl;
+    }
+  
   double d = dist( F, Fmean);
 //   std::cout << "d: " << d << std::endl;
 
@@ -199,7 +240,9 @@ int main(int argc, char * argv[])
   int i;
   for( i=0; i<sim && d > dists[i]; i++ ); // search the index
 //   std::cout << "i: " << i << std::endl;
-  std::cout << ( i + 1.0 ) / ( sim + 1.0 ) << std::endl;
+  std::cout << "\"" << basename << "\" "
+            << "\"" << labelStr << "\" "
+            << ( i + 1.0 ) / ( sim + 1.0 ) << std::endl;
 
   return 0;
 }

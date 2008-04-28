@@ -123,7 +123,7 @@ GListType gestimator( const LabelMapType * input, const IType * spots, PType lab
     }
   for( int i=0; i<spotList.size(); i++ )
     {
-    distances[i][i] = 0;
+    distances[i][i] = 0.0;
     for( int j=i+1; j<spotList.size(); j++ )
       {
       double dist = 0.0;
@@ -133,6 +133,7 @@ GListType gestimator( const LabelMapType * input, const IType * spots, PType lab
         }
       dist = std::sqrt( dist );
       distances[i][j] = dist;
+      distances[j][i] = dist;
       }
     }
 
@@ -140,7 +141,7 @@ GListType gestimator( const LabelMapType * input, const IType * spots, PType lab
   for( int i=0; i<spotList.size(); i++ )
     {
     double dist = itk::NumericTraits<double>::max();
-    for( int j=i+1; j<spotList.size(); j++ )
+    for( int j=0; j<spotList.size(); j++ )
       {
       if( distances[i][j] > 0 )
         {
@@ -149,6 +150,7 @@ GListType gestimator( const LabelMapType * input, const IType * spots, PType lab
       }
       G.push_back( dist );
     }
+  std::sort( G.begin(), G.end() );
   return G;
 }
 
@@ -206,7 +208,6 @@ int main(int argc, char * argv[])
 //     std::cerr << iter << " "; // << std::endl;
     long dummy;
     GListType Gsim = gestimator( li2lm->GetOutput(), NULL, label, nbOfSpots, dummy );
-    std::sort( Gsim.begin(), Gsim.end() );
     Gsims.push_back( Gsim );
   //   std::cout << std::endl;
     for( int i=0; i<Gsim.size(); i++ )
@@ -217,17 +218,20 @@ int main(int argc, char * argv[])
 //   std::cerr << std::endl;
   std::sort( Gmean.begin(), Gmean.end() );
 
-/*  // to see what the F functions looks like
-   std::string outFName = basename+"-"+labelStr+"-F.txt";
-   std::ofstream outF(outFName.c_str(), std::ios::out);
-   std::string outFMeanName = basename+"-"+labelStr+"-FMean.txt";
-   std::ofstream outFMean(outFMeanName.c_str(), std::ios::out);
-  for( int i=0; i<hist_size; i++ )
+  // to see what the G functions looks like
+   std::string outGName = basename+"-"+labelStr+"-G.txt";
+   std::ofstream outG(outGName.c_str(), std::ios::out);
+   std::string outGMeanName = basename+"-"+labelStr+"-GMean.txt";
+   std::ofstream outGMean(outGMeanName.c_str(), std::ios::out);
+  for( int i=0; i<G.size(); i++ )
     {
-    outF << F[i] << std::endl;
-    outFMean << Fmean[i] << std::endl;
+    outG << G[i] << std::endl;
     }
-*/
+  for( int i=0; i<Gmean.size(); i++ )
+    {
+    outGMean << Gmean[i] << std::endl;
+    }
+
   double d = dist( G, Gmean);
 //   std::cout << "d: " << d << std::endl;
 

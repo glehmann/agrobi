@@ -242,7 +242,7 @@ int main(int argc, char * argv[])
 //   std::cout << "i: " << i << std::endl;
   std::cout << "\"" << basename << "\" "
             << "\"" << labelStr << "\" "
-            << ( i + 1.0 ) / ( sim + 1.0 ) << std::endl;
+            << ( sim + 1.0 - i ) / ( sim + 1.0 ) << std::endl;
 
   return 0;
 }

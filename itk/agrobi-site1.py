@@ -66,6 +66,25 @@ def attribute_list( i, name ):
   return l
 
 
+def attributes_list( i, names ):
+  """Returns a list of the specified attributes for the objects in the image.
+  
+  i: the input LabelImage
+  name: the attribute name
+  """
+  i = itk.image(i)
+  relabel = itk.StatisticsRelabelLabelMapFilter[i].New(i, Attribute=names[0], ReverseOrdering=True, InPlace=False)
+  relabel.UpdateLargestPossibleRegion()
+  r = relabel.GetOutput()
+  l = []
+  for i in range(1, r.GetNumberOfLabelObjects()+1):
+    attrs = []
+    for name in names :
+      attrs.append( r.GetLabelObject(i).__getattribute__("Get"+name)() )
+    l.append( tuple( attrs ) )
+  return l
+
+
 def attribute_dict( i, name ):
   """Returns a dict with the attribute values in keys and a list of the corresponding objects in value
   

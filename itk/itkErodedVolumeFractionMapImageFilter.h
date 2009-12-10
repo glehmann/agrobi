@@ -6,11 +6,11 @@
 namespace itk {
 
 /** \class ErodedVolumeFractionMapImageFilter
- * \brief Compute the central index from a distance map
+ * \brief Compute the eroded volume fraction map from a distance map
  *
  * 
  *
- * \author Gaëtan Lehmann. Biologie du Développement et de la Reproduction, INRA de Jouy-en-Josas, France.
+ * \author Gaetan Lehmann. Biologie du Developpement et de la Reproduction, INRA de Jouy-en-Josas, France.
  *
  * \sa SignedMaurerDistanceMapImageFilter, SignedDanielssonDistanceMapImageFilter
  * \ingroup ImageEnhancement  MathematicalMorphologyImageFilters

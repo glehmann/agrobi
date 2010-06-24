@@ -65,18 +65,41 @@ ErodedVolumeFractionMapImageFilter<TInputImage, TOutputImage>
 template<class TInputImage, class TOutputImage>
 void
 ErodedVolumeFractionMapImageFilter<TInputImage, TOutputImage>
-::GenerateData()
+::BeforeThreadedGenerateData(void)
+{
+  typename TOutputImage::Pointer output = this->GetOutput();
+  typename TInputImage::ConstPointer input = this->GetInput();
+
+  long nbOfThreads = this->GetNumberOfThreads();
+  if( itk::MultiThreader::GetGlobalMaximumNumberOfThreads() != 0 )
+    {
+    nbOfThreads = vnl_math_min( this->GetNumberOfThreads(), itk::MultiThreader::GetGlobalMaximumNumberOfThreads() );
+    }
+  // number of threads can be constrained by the region size, so call the SplitRequestedRegion
+  // to get the real number of threads which will be used
+  typename TOutputImage::RegionType splitRegion;  // dummy region - just to call the following method
+  nbOfThreads = this->SplitRequestedRegion(0, nbOfThreads, splitRegion);
+
+  m_Barrier = Barrier::New();
+  m_Barrier->Initialize( nbOfThreads );
+  m_InMaps.clear();
+  m_InMaps.resize( nbOfThreads );
+}
+
+template<class TInputImage, class TOutputImage>
+void
+ErodedVolumeFractionMapImageFilter<TInputImage, TOutputImage>
+::ThreadedGenerateData(const OutputImageRegionType& outputRegionForThread,
+                       int threadId)
 {
   // do not allocate the output now, to decrease the memory usage
-  ProgressReporter progress(this, 0, this->GetOutput()->GetRequestedRegion().GetNumberOfPixels()*2);
+  ProgressReporter progress(this, threadId, outputRegionForThread.GetNumberOfPixels()*2);
 
-  // the map which will store the histogram of the distance map, with a high precision
-  typedef std::map< InputImagePixelType, unsigned long, std::greater< InputImagePixelType > > InMapType;
-  InMapType inMap;
+  InMapType & inMap = m_InMaps[threadId];
 
   // fill the map
   long inside = 0;
-  ImageRegionConstIterator< InputImageType > iIt( this->GetInput(), this->GetOutput()->GetRequestedRegion() );
+  ImageRegionConstIterator< InputImageType > iIt( this->GetInput(), outputRegionForThread );
   for( iIt.GoToBegin(); !iIt.IsAtEnd(); ++iIt )
     {
     const InputImagePixelType & v = iIt.Get();
@@ -88,34 +111,61 @@ ErodedVolumeFractionMapImageFilter<TInputImage, TOutputImage>
     progress.CompletedPixel();
     }
 
-  // the map which will store the output histogram
-  typedef std::map< InputImagePixelType, OutputImagePixelType > OutMapType;
-  OutMapType outMap;
+  m_Barrier->Wait();
 
-  // compute the density of the histogram
-  long nb = 0;
-  typename InMapType::const_iterator mapIt;
-  for( mapIt = inMap.begin(); mapIt != inMap.end(); mapIt++ )
+  if( threadId == 0 )
     {
-    outMap[ mapIt->first ] = ( inside - nb ) / static_cast< OutputImagePixelType >( inside );
-    nb += mapIt->second;
+    m_OutMap.clear();
+    typename InMapType::const_iterator mapIt;
+
+    // group the histograms
+    for( unsigned int i=1; i<m_InMaps.size(); i++ )
+      {
+      InMapType & inMapT = m_InMaps[i];
+      for( mapIt = inMapT.begin(); mapIt != inMapT.end(); mapIt++ )
+        {
+        inMap[ mapIt->first ] += mapIt->second;
+        if( mapIt->first > 0 )
+          {
+          inside += mapIt->second;
+          }
+        }
+      }
+    // compute the density of the histogram
+    long nb = 0;
+    for( mapIt = inMap.begin(); mapIt != inMap.end(); mapIt++ )
+      {
+      m_OutMap[ mapIt->first ] = ( inside - nb ) / static_cast< OutputImagePixelType >( inside );
+      nb += mapIt->second;
+      }
+    this->AllocateOutputs();
     }
 
-  // now clear the input map, and allocate the output
+  m_Barrier->Wait();
+
+  // now clear the input map
   inMap.clear();
-  this->AllocateOutputs();
 
   // and fill the output image
-  ImageRegionIterator< OutputImageType > oIt( this->GetOutput(), this->GetOutput()->GetRequestedRegion() );
+  ImageRegionIterator< OutputImageType > oIt( this->GetOutput(), outputRegionForThread );
   for( iIt.GoToBegin(), oIt.GoToBegin();
     !iIt.IsAtEnd();
     ++iIt, ++oIt )
     {
-    oIt.Set( outMap[ iIt.Get() ] );
+    oIt.Set( m_OutMap[ iIt.Get() ] );
     progress.CompletedPixel();
     }
 }
 
+
+template<class TInputImage, class TOutputImage>
+void
+ErodedVolumeFractionMapImageFilter<TInputImage, TOutputImage>
+::AfterThreadedGenerateData(void)
+{
+  m_InMaps.clear();
+  m_OutMap.clear();
+}
 
 
 template<class TInputImage, class TOutputImage>

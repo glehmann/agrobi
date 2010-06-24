@@ -2,6 +2,7 @@
 #define __itkErodedVolumeFractionMapImageFilter_h
 
 #include "itkImageToImageFilter.h"
+#include "itkBarrier.h"
 
 namespace itk {
 
@@ -74,17 +75,22 @@ protected:
    * \sa ProcessObject::EnlargeOutputRequestedRegion() */
   void EnlargeOutputRequestedRegion(DataObject *itkNotUsed(output));
 
-  /** Single-threaded version of GenerateData.  This version is used
-   * when the filter is configured to run to convergence. This method
-   * may delegate to the multithreaded version if the filter is
-   * configured to run a single iteration.  Otherwise, it will
-   * delegate to a separate instance to run each iteration until the
-   * filter converges. */
-  void GenerateData();
+  void BeforeThreadedGenerateData(void);
+  void ThreadedGenerateData(const OutputImageRegionType& outputRegionForThread,
+                            int threadId );
+  void AfterThreadedGenerateData(void);
   
 private:
   ErodedVolumeFractionMapImageFilter(const Self&); //purposely not implemented
   void operator=(const Self&); //purposely not implemented
+
+  typedef std::map< InputImagePixelType, unsigned long, std::greater< InputImagePixelType > > InMapType;
+  std::vector<InMapType>          m_InMaps;
+  // the map which will store the output histogram
+  typedef std::map< InputImagePixelType, OutputImagePixelType > OutMapType;
+  OutMapType m_OutMap;
+  typename Barrier::Pointer m_Barrier;
+
 
 } ; // end of class
 
